@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 2,
+  "title": "RiskDeck 自跟踪板",
+  "generatedAt": "2026-09-12",
+  "projects": [
+    {
+      "id": "proj-rd",
+      "name": "RiskDeck",
+      "kind": "project",
+      "children": [
+        {
+          "id": "g-report",
+          "name": "月报投影管线",
+          "kind": "module",
+          "children": [
+            {
+              "id": "t-schema",
+              "name": "schema v2 加法迁移",
+              "kind": "feature",
+              "estimateHours": 12,
+              "impl": {
+                "status": "verified"
+              }
+            },
+            {
+              "id": "t-report-cmd",
+              "name": "report 投影命令",
+              "kind": "feature",
+              "estimateHours": 16,
+              "impl": {
+                "status": "done"
+              },
+              "progressOverride": 85
+            },
+            {
+              "id": "t-html",
+              "name": "HTML 详略控件",
+              "kind": "feature",
+              "estimateHours": 20,
+              "impl": {
+                "status": "wip"
+              },
+              "progressOverride": 10
+            }
+          ],
+          "goal": {
+            "metric": "report 命令一条指令出月报",
+            "gate": "md+html 双产物，数字全出自事件流",
+            "due": "2026-09-30",
+            "fteBudget": 3
+          }
+        },
+        {
+          "id": "g-mcp",
+          "name": "MCP server",
+          "kind": "module",
+          "children": [
+            {
+              "id": "t-decomp",
+              "name": "MCP 目标拆解任务",
+              "kind": "feature",
+              "impl": {
+                "status": "done"
+              }
+            }
+          ],
+          "goal": {
+            "metric": "dsh 会话内直接读写看板",
+            "gate": "三大 agent 各跑通一次往返",
+            "due": "2026-11-30",
+            "fteBudget": 5
+          },
+          "progressOverride": 85
+        },
+        {
+          "id": "g-timesheet",
+          "name": "工时源适配器",
+          "kind": "module",
+          "children": [
+            {
+              "id": "t-api",
+              "name": "工时 API 拉取",
+              "kind": "feature",
+              "estimateHours": 24
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "dependencies": [],
+  "milestones": [
+    {
+      "id": "ms-report",
+      "node": "g-report",
+      "name": "月报管线可用",
+      "date": "2026-09-30",
+      "status": "at-risk",
+      "criteria": [
+        "report 出 md",
+        "HTML 可交互"
+      ]
+    },
+    {
+      "id": "ms-timesheet",
+      "node": "g-timesheet",
+      "name": "工时源自动入库",
+      "date": "2026-10-15",
+      "status": "planned",
+      "criteria": [
+        "API 拉取",
+        "映射表覆盖 90%"
+      ]
+    }
+  ],
+  "backlog": [
+    {
+      "title": "工时导出文件通道（watcher 兜底）",
+      "status": "planned",
+      "node": "g-timesheet",
+      "date": "2026-09-12"
+    },
+    {
+      "title": "report 接入容量对账",
+      "status": "planned",
+      "node": "g-report",
+      "date": "2026-09-12"
+    },
+    {
+      "title": "MCP server 骨架",
+      "status": "planned",
+      "node": "g-mcp",
+      "date": "2026-09-12"
+    }
+  ],
+  "risks": [
+    {
+      "id": "r-001",
+      "title": "工时系统 API 鉴权方式未定",
+      "category": "resource",
+      "p": 0.6,
+      "i": 30,
+      "status": "open",
+      "node": "g-timesheet",
+      "review": "2026-09-05",
+      "mitigation": "已提工单，等待平台组回复",
+      "openedAt": "2026-08-25"
+    },
+    {
+      "id": "r-002",
+      "title": "跨会话语义映射规则复杂，业界无现成方案",
+      "category": "problem",
+      "p": 0.5,
+      "i": 40,
+      "status": "mitigating",
+      "owner": "宿主",
+      "node": "g-timesheet",
+      "review": "2026-09-20",
+      "mitigation": "先做导出文件通道兜底，API 后置",
+      "openedAt": "2026-09-01"
+    },
+    {
+      "id": "r-003",
+      "title": "HTML 模板打印样式可能超出 A4",
+      "category": "quality",
+      "p": 0.4,
+      "i": 8,
+      "status": "open",
+      "node": "t-html",
+      "openedAt": "2026-09-10"
+    },
+    {
+      "id": "r-004",
+      "title": "月报截止前手忙脚乱赶工",
+      "category": "schedule",
+      "p": 0.3,
+      "i": 15,
+      "status": "resolved",
+      "owner": "宿主",
+      "node": "g-report",
+      "note": "report 命令上线，赶工风险解除",
+      "openedAt": "2026-08-16"
+    }
+  ],
+  "assets": [
+    {
+      "id": "as-001",
+      "title": "概念 v2 术语与四类风险约定",
+      "type": "process",
+      "status": "adopted",
+      "scope": "团队",
+      "node": "proj-rd",
+      "metric": "汇报口径对齐耗时",
+      "baseline": "每次会议 30 分钟扯皮",
+      "value": "降至 5 分钟",
+      "unit": "分钟/次",
+      "evidence": "docs/CONCEPTS.md",
+      "reused": 7,
+      "createdAt": "2026-09-12"
+    },
+    {
+      "id": "as-002",
+      "title": "riskdeck report 月报投影管线",
+      "type": "tool",
+      "status": "deposited",
+      "node": "g-report",
+      "createdAt": "2026-09-12"
+    },
+    {
+      "id": "as-003",
+      "title": "加法式 schema 迁移方法",
+      "type": "knowledge",
+      "status": "deposited",
+      "note": "v1 看板零破坏升级的可复用做法",
+      "createdAt": "2026-09-12"
+    }
+  ],
+  "meta": {
+    "createdAt": "2026-09-12T21:05:26.275Z",
+    "version": 35,
+    "updatedAt": "2026-09-13T08:16:18.681Z"
+  }
+}

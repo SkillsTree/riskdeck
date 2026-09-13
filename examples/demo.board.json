@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "title": "星舟电商 · 多项目追踪看板",
+  "description": "示例数据：三个相互依赖的项目（电商平台 / 移动 App / 数据平台）的设计与实施追踪。包含模块→功能→接口四级结构、跨项目依赖、里程碑与动态历史。",
+  "generatedAt": "2026-09-10",
+  "source": { "repo": "xingzhou-platform", "docsRoot": "." },
+  "projects": [
+    {
+      "id": "proj-platform",
+      "name": "电商平台",
+      "kind": "project",
+      "summary": "核心交易中台：为 App 与数据平台提供统一 API。",
+      "owner": "平台组",
+      "design": { "status": "approved", "docs": [{ "path": "examples/docs/platform-overview.md", "label": "平台总体设计" }] },
+      "impl": { "status": "wip", "evidence": "epic/#101" },
+      "children": [
+        {
+          "id": "mod-auth", "name": "认证中心", "kind": "module",
+          "summary": "登录、会话、权限。",
+          "design": { "status": "approved", "docs": [{ "path": "examples/docs/auth.md", "label": "认证设计", "anchor": "#login" }] },
+          "impl": { "status": "verified", "evidence": "PR #88" },
+          "children": [
+            { "id": "feat-login", "name": "账号登录", "kind": "feature", "design": { "status": "approved" }, "impl": { "status": "verified", "code": ["services/auth/login.ts"], "tests": ["tests/auth/login.spec.ts"], "evidence": "PR #88" }, "children": [
+              { "id": "api-login", "name": "POST /v1/login", "kind": "interface", "design": { "status": "approved" }, "impl": { "status": "verified", "evidence": "PR #88" } },
+              { "id": "api-logout", "name": "POST /v1/logout", "kind": "interface", "design": { "status": "approved" }, "impl": { "status": "done", "code": ["services/auth/logout.ts"] } }
+            ] },
+            { "id": "feat-oauth", "name": "第三方 OAuth", "kind": "feature", "design": { "status": "reviewed" }, "impl": { "status": "wip" }, "children": [
+              { "id": "api-oauth-cb", "name": "GET /v1/oauth/callback", "kind": "interface", "design": { "status": "reviewed" }, "impl": { "status": "wip", "code": ["services/auth/oauth.ts"], "evidence": "PR #104 (draft)" } }
+            ] }
+          ]
+        },
+        {
+          "id": "mod-order", "name": "订单中心", "kind": "module",
+          "summary": "下单、履约、售后。",
+          "design": { "status": "reviewed" }, "impl": { "status": "wip" },
+          "children": [
+            { "id": "feat-checkout", "name": "结算下单", "kind": "feature", "design": { "status": "reviewed" }, "impl": { "status": "wip" }, "children": [
+              { "id": "api-create-order", "name": "POST /v1/orders", "kind": "interface", "design": { "status": "reviewed" }, "impl": { "status": "done", "code": ["services/order/create.ts"], "evidence": "PR #97" } }
+            ] },
+            { "id": "feat-aftersale", "name": "售后退款", "kind": "feature", "design": { "status": "draft" }, "impl": { "status": "todo" }, "children": [
+              { "id": "api-refund", "name": "POST /v1/refunds", "kind": "interface", "design": { "status": "draft" }, "impl": { "status": "todo" } }
+            ] }
+          ]
+        },
+        {
+          "id": "mod-pay", "name": "支付网关", "kind": "module",
+          "summary": "聚合微信/支付宝渠道。",
+          "design": { "status": "approved" }, "impl": { "status": "wip" },
+          "children": [
+            { "id": "feat-pay-uni", "name": "统一支付", "kind": "feature", "design": { "status": "approved" }, "impl": { "status": "wip" }, "children": [
+              { "id": "api-pay", "name": "POST /v1/pay", "kind": "interface", "design": { "status": "approved" }, "impl": { "status": "wip", "code": ["services/pay/charge.ts"], "evidence": "PR #112" } },
+              { "id": "api-pay-notify", "name": "POST /v1/pay/notify", "kind": "interface", "design": { "status": "approved" }, "impl": { "status": "done", "evidence": "PR #109" } }
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "proj-app", "name": "移动 App",
+      "kind": "project",
+      "summary": "Flutter 双端 App，全部能力经由电商平台 API。",
+      "owner": "App 组",
+      "design": { "status": "reviewed", "docs": [{ "path": "examples/docs/app-design.md", "label": "App 交互与接口设计" }] },
+      "impl": { "status": "wip" },
+      "children": [
+        { "id": "mod-app-home", "name": "首页与商品", "kind": "module", "design": { "status": "approved" }, "impl": { "status": "done" }, "children": [
+          { "id": "feat-app-goods", "name": "商品列表与详情", "kind": "feature", "design": { "status": "approved" }, "impl": { "status": "verified", "evidence": "v1.2.0" }, "children": [
+            { "id": "api-goods-list", "name": "GET /v1/goods（电商平台提供）", "kind": "interface", "design": { "status": "approved" }, "impl": { "status": "verified" } }
+          ] }
+        ] },
+        { "id": "mod-app-order", "name": "交易流程", "kind": "module", "design": { "status": "reviewed" }, "impl": { "status": "wip" }, "children": [
+          { "id": "feat-app-checkout", "name": "App 下单", "kind": "feature", "design": { "status": "reviewed" }, "impl": { "status": "wip" }, "children": [
+            { "id": "scr-app-pay", "name": "收银台页面", "kind": "interface", "design": { "status": "reviewed" }, "impl": { "status": "wip", "evidence": "app/PR#31" } }
+          ] }
+        ] }
+      ]
+    },
+    {
+      "id": "proj-data", "name": "数据平台",
+      "kind": "project",
+      "summary": "消费订单/行为数据，产出经营报表。",
+      "owner": "数据组",
+      "design": { "status": "draft" }, "impl": { "status": "todo" },
+      "children": [
+        { "id": "mod-dw", "name": "数仓分层", "kind": "module", "design": { "status": "draft" }, "impl": { "status": "todo" }, "children": [
+          { "id": "feat-dwd-order", "name": "订单明细层", "kind": "feature", "design": { "status": "draft" }, "impl": { "status": "todo" }, "children": [
+            { "id": "tbl-dwd-order", "name": "dwd_order_detail（CDC 订阅订单库）", "kind": "interface", "design": { "status": "draft" }, "impl": { "status": "todo" } }
+          ] }
+        ] }
+      ]
+    }
+  ],
+  "dependencies": [
+    { "from": "mod-order", "to": "mod-auth", "kind": "calls", "note": "下单前校验登录态" },
+    { "from": "mod-order", "to": "mod-pay", "kind": "calls", "note": "结算发起支付" },
+    { "from": "proj-app", "to": "proj-platform", "kind": "depends", "note": "App 全部能力走平台 API" },
+    { "from": "feat-app-checkout", "to": "api-create-order", "kind": "calls" },
+    { "from": "scr-app-pay", "to": "api-pay", "kind": "calls", "note": "收银台唤起支付" },
+    { "from": "proj-data", "to": "mod-order", "kind": "data", "note": "CDC 订阅订单库" },
+    { "from": "mod-dw", "to": "proj-data", "kind": "deploy", "note": "数仓部署于数据平台集群" }
+  ],
+  "milestones": [
+    { "id": "ms-plat-alpha", "node": "proj-platform", "name": "平台 Alpha：登录+下单闭环", "date": "2026-08-15", "status": "hit", "criteria": ["账号登录上线", "POST /v1/orders 可用"], "evidence": "release/2026-08-15" },
+    { "id": "ms-pay-live", "node": "mod-pay", "name": "支付渠道全通", "date": "2026-09-05", "status": "at-risk", "criteria": ["微信/支付宝联调通过", "回调幂等"], "evidence": "联调环境剩余 2 个用例" },
+    { "id": "ms-app-beta", "node": "proj-app", "name": "App 公测版", "date": "2026-09-20", "status": "planned", "criteria": ["交易流程全通", "Crash 率 < 0.1%"] },
+    { "id": "ms-data-dwd", "node": "feat-dwd-order", "name": "订单明细层首跑", "date": "2026-09-12", "status": "missed", "criteria": ["T+1 数据准确率 99.9%"], "evidence": "依赖订单库 CDC，暂未开通" },
+    { "id": "ms-plat-ga", "node": "proj-platform", "name": "平台 GA", "date": "2026-10-30", "status": "planned", "criteria": ["售后退款上线", "全链路压测通过"] }
+  ],
+  "backlog": [
+    { "id": "bl-live-search", "title": "商品列表实时搜索", "status": "uncommitted", "node": "mod-app-home", "note": "App 组想做的体验优化，尚未承诺排期", "date": "2026-09-06" },
+    { "id": "bl-coupon", "title": "优惠券引擎", "status": "planned", "node": "proj-platform", "note": "已纳入 Q4 规划讨论，等订单 GA 后立项", "date": "2026-09-09" },
+    { "id": "bl-legacy-mall", "title": "老商城迁移", "status": "cancelled", "note": "决定直接上新平台，不迁移" }
+  ],
+  "events": [
+    { "date": "2026-07-01", "node": "proj-platform", "type": "design", "to": "draft", "note": "平台总体设计初稿" },
+    { "date": "2026-07-20", "node": "proj-platform", "type": "design", "from": "draft", "to": "approved", "note": "架构评审通过", "ref": "ADR-007" },
+    { "date": "2026-08-02", "node": "feat-login", "type": "impl", "from": "todo", "to": "wip", "note": "登录开发启动" },
+    { "date": "2026-08-12", "node": "feat-login", "type": "impl", "from": "wip", "to": "done", "note": "登录+登出完成", "ref": "PR #88" },
+    { "date": "2026-08-15", "node": "proj-platform", "type": "milestone", "note": "平台 Alpha 达成：登录+下单闭环上线", "ref": "release/2026-08-15" },
+    { "date": "2026-08-28", "node": "mod-app-home", "type": "impl", "from": "wip", "to": "done", "note": "首页与商品模块完成联调" },
+    { "date": "2026-09-01", "node": "proj-data", "type": "dependency", "note": "新增依赖：数据平台订阅订单库 CDC" },
+    { "date": "2026-09-03", "node": "api-pay", "type": "impl", "from": "todo", "to": "wip", "note": "统一支付开发中", "ref": "PR #112" },
+    { "date": "2026-09-05", "node": "ms-pay-live", "type": "milestone", "note": "支付渠道全通未达成 → 标记风险：支付宝退款联调未过" },
+    { "date": "2026-09-08", "node": "feat-oauth", "type": "design", "from": "draft", "to": "reviewed", "note": "OAuth 设计进入评审" },
+    { "date": "2026-09-10", "node": "proj-app", "type": "note", "note": "App 公测版排期确认 09-20" }
+  ]
+}

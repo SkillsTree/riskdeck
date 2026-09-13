@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>riskdeck · 项目进度/里程碑/风险可视化样图画廊</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1a1d21; --ink2: #5c6470;
+    --line: #e4e7ec; --accent: #2563eb; --chip: #eef2ff; --shadow: 0 1px 3px rgba(16,24,40,.08), 0 8px 24px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #101318; --card: #171b22; --ink: #e8eaee; --ink2: #9aa3b2; --line: #262c36; --accent: #6ea1ff; --chip: #1c2433; --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 -apple-system, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif; }
+  header { max-width: 1280px; margin: 0 auto; padding: 40px 24px 8px; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: .5px; }
+  header p { color: var(--ink2); margin: 0; max-width: 900px; }
+  .goal { max-width: 1280px; margin: 16px auto 0; padding: 0 24px; }
+  .goal div { background: var(--chip); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; color: var(--ink2); font-size: 14px; }
+  .goal b { color: var(--accent); }
+  nav { max-width: 1280px; margin: 20px auto; padding: 0 24px; display: flex; gap: 8px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+  nav a { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink2); text-decoration: none; font-size: 13px; }
+  nav a:hover { color: var(--accent); border-color: var(--accent); }
+  main { max-width: 1280px; margin: 0 auto; padding: 0 24px 64px; }
+  h2 { font-size: 19px; margin: 40px 0 4px; }
+  h2 small { color: var(--ink2); font-weight: normal; font-size: 13px; margin-left: 10px; }
+  .sub { color: var(--ink2); font-size: 13px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+  .imgwrap { position: relative; cursor: zoom-in; background: var(--bg); }
+  .imgwrap img { width: 100%; display: block; aspect-ratio: 16/9.6; object-fit: cover; object-position: top left; }
+  .badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; padding: 2px 10px; border-radius: 999px; backdrop-filter: blur(4px); }
+  figcaption { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  figcaption h3 { margin: 0; font-size: 15px; }
+  figcaption h3 a { color: var(--accent); text-decoration: none; font-size: 12px; font-weight: normal; margin-left: 8px; }
+  ul { margin: 0; padding-left: 18px; color: var(--ink2); font-size: 13px; }
+  ul li { margin: 2px 0; }
+  .rd { font-size: 12.5px; color: var(--ink2); border-left: 3px solid var(--accent); padding: 4px 10px; background: var(--chip); border-radius: 0 8px 8px 0; }
+  .rd b { color: var(--accent); font-weight: 600; }
+  .patterns { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .patterns a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; text-decoration: none; color: var(--ink); box-shadow: var(--shadow); }
+  .patterns a:hover { border-color: var(--accent); }
+  .patterns h4 { margin: 0 0 4px; font-size: 14px; color: var(--accent); }
+  .patterns p { margin: 0; font-size: 12.5px; color: var(--ink2); }
+  #lb { position: fixed; inset: 0; background: rgba(8,10,14,.82); display: none; align-items: center; justify-content: center; z-index: 50; cursor: zoom-out; padding: 24px; }
+  #lb img { max-width: 96vw; max-height: 92vh; border-radius: 8px; box-shadow: 0 12px 60px rgba(0,0,0,.6); }
+  footer { max-width: 1280px; margin: 0 auto; padding: 0 24px 48px; color: var(--ink2); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>项目进度 / 里程碑 / 风险 · 可视化样图画廊</h1>
+  <p>调研自国内外热门项目管理与甘特图产品（Bryntum、dhtmlxGantt、GanttPRO、ClickUp、MS Project/TPG 等），截图均来自官方站点，仅供 riskdeck 内部设计参照。</p>
+</header>
+<div class="goal"><div>🎯 设计目标：<b>宏观→微观多精度观察</b>——宏观态折叠微观事项，但折叠条/卡片上<b>仍显示内部微观事项的聚合统计</b>（完成度、逾期数、健康度、趋势 sparkline）。标有 <b>RD</b> 的行是「对 riskdeck 的启示」。</div></div>
+<nav>
+  <a href="#s1">① 宏观折叠 + 聚合统计</a>
+  <a href="#s2">② 时间线 · 里程碑 · 进度</a>
+  <a href="#s3">③ 负载与风险</a>
+  <a href="#s4">④ 趋势 · 预测 · 历史</a>
+  <a href="#s5">⑤ 模式速查（报告）</a>
+</nav>
+
+<main>
+  <h2 id="s1">① 宏观折叠 + 聚合统计 <small>与设计目标最直接相关</small></h2>
+  <p class="sub">项目群一屏折叠，折叠条上保留完成度 / 负载 / 风险统计。</p>
+  <div class="grid">
+    <figure>
+      <div class="imgwrap" data-full="images/bryntum-portfolio.png"><span class="badge">Bryntum Gantt</span><img src="images/bryntum-portfolio.png" alt="项目群组合甘特"></div>
+      <figcaption>
+        <h3>项目群组合甘特<a href="https://bryntum.com/products/gantt/" target="_blank">来源↗</a></h3>
+        <ul><li>三个项目一行一条，WBS 编号 + 项目色汇总条；子任务折叠仍显示条内进度深浅</li><li>里程碑菱形 + PO/P2 约束芯片 + 每条任务行尾名称标签</li></ul>
+        <div class="rd"><b>RD</b> 「project=一行」的宏观密度 + 汇总条进度填充，是 riskdeck 层级时间线的直接模板。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/dhtmlx-screen-5.webp"><span class="badge">dhtmlxGantt</span><img src="images/dhtmlx-screen-5.webp" alt="甘特+资源负载网格"></div>
+      <figcaption>
+        <h3>甘特 + 资源负载网格（分栏联动）<a href="https://dhtmlx.com/docs/products/dhtmlxGantt/" target="_blank">来源↗</a></h3>
+        <ul><li>上半甘特、下半资源网格；分组行滚动汇总 Complete% / Workload / Capacity（QA 50%/71h/240h）</li><li>单元格「10/24」分子分母 + 红底超载、蓝底容量刻度</li></ul>
+        <div class="rd"><b>RD</b> 「折叠组 + 组内滚动汇总」的教科书呈现；riskdeck 模块行可直接汇总 feature/interface 状态计数。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/bryntum-bigdata.png"><span class="badge">Bryntum Gantt</span><img src="images/bryntum-bigdata.png" alt="10K任务多级汇总条"></div>
+      <figcaption>
+        <h3>10K 任务 · 多级汇总条<a href="https://bryntum.com/products/gantt/" target="_blank">来源↗</a></h3>
+        <ul><li>Parent / Sub-parent 两级折叠，深色段=完成比例，依赖链跨折叠层连接</li><li>万级任务下宏观条仍可读（性能与信息密度双证）</li></ul>
+        <div class="rd"><b>RD</b> 证明「汇总条」方案在 interface 数千级时依然成立。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/clickup-portfolios.png"><span class="badge">ClickUp</span><img src="images/clickup-portfolios.png" alt="Portfolio 状态rollup列表"></div>
+      <figcaption>
+        <h3>Portfolio 状态 rollup 列表<a href="https://clickup.com/features" target="_blank">来源↗</a></h3>
+        <ul><li>一行=一个项目：面包屑层级 + 整块状态色格（Behind/On Track/On Schedule…）+ 起止/优先级/负责人</li><li>状态色是"整格大色块"而非小圆点，远距离扫视极快</li></ul>
+        <div class="rd"><b>RD</b> riskdeck 项目列表可直接套用：色格=里程碑健康度（四态映射），行尾加聚合数字列。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/azure-rollup.png"><span class="badge">Azure DevOps</span><img src="images/azure-rollup.png" alt="Delivery Plans rollup卡片"></div>
+      <figcaption>
+        <h3>Delivery Plans · Epic rollup 卡片<a href="https://learn.microsoft.com/en-us/azure/devops/boards/plans/review-team-plans" target="_blank">来源↗</a></h3>
+        <ul><li>Epic 折叠为一张卡：卡内按字段分列多条进度条（0%/38%/14%）</li><li>sprint 泳道 + 团队/Epics 树形分组</li></ul>
+        <div class="rd"><b>RD</b> 「折叠卡内嵌多条微型进度条」：riskdeck 节点卡可按双轴状态（design×impl）各画一条。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/openproject-overarch.png"><span class="badge">OpenProject</span><img src="images/openproject-overarch.png" alt="跨项目overarching时间线"></div>
+      <figcaption>
+        <h3>跨项目 overarching 时间线<a href="https://www.openproject.org/docs/user-guide/gantt-chart/" target="_blank">来源↗</a></h3>
+        <ul><li>"Include projects"：项目行聚合子项目与里程碑成一条总览时间线</li><li>甘特与 work package 表格一体，折叠后父行延续 %/日期列</li></ul>
+        <div class="rd"><b>RD</b> riskdeck 顶层"项目群总览行"=所有子项目时间范围+关键里程碑的机械聚合（图由数据推导）。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/ganttpro-feature-1.png"><span class="badge">GanttPRO</span><img src="images/ganttpro-feature-1.png" alt="工作量热力图"></div>
+      <figcaption>
+        <h3>工作量热力图（行=人，列=天）<a href="https://www.ganttpro.com/" target="_blank">来源↗</a></h3>
+        <ul><li>格内数字=工时，颜色绿(闲置)→红(过载)，一眼扫出瓶颈日</li><li>行首头像+姓名，行内整行即该人负载带</li></ul>
+        <div class="rd"><b>RD</b> 同构变体：行=项目/模块、列=周、色=当日新增 at-risk/missed 数 → 风险密度热力。</div>
+      </figcaption>
+    </figure>
+  </div>
+
+  <h2 id="s2">② 时间线 · 里程碑 · 进度</h2>
+  <p class="sub">甘特本体：汇总条进度、依赖、里程碑标记、深浅双主题。</p>
+  <div class="grid">
+    <figure>
+      <div class="imgwrap" data-full="images/bryntum-scurve.png"><span class="badge">Bryntum Gantt</span><img src="images/bryntum-scurve.png" alt="S曲线叠加甘特"></div>
+      <figcaption>
+        <h3>S 曲线叠加甘特（计划 vs 实际）<a href="https://bryntum.com/products/gantt/" target="_blank">来源↗</a></h3>
+        <ul><li>蓝=计划累计进度、绿=实际累计进度，两条 S 曲线直接画在甘特背景层</li><li>任务条内进度填充 + 依赖箭头；偏差与排期同屏对照</li></ul>
+        <div class="rd"><b>RD</b> riskdeck 可用 events 里 impl 状态变更时间点重建「实际曲线」，计划曲线来自里程碑日期——不需要新采集。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/leantime-milestones.png"><span class="badge">Leantime</span><img src="images/leantime-milestones.png" alt="里程碑聚合容器"></div>
+      <figcaption>
+        <h3>里程碑=聚合容器（内联完成度）<a href="https://leantime.io/" target="_blank">来源↗</a></h3>
+        <ul><li>彩色里程碑条内联 "(100.00% Done)" 文字 + 负责人头像 chip + 依赖箭头</li><li>"Show Tasks" 开关一键展开里程碑为任务；Timeframe 月/周/日/年切换</li></ul>
+        <div class="rd"><b>RD</b> 与 riskdeck 里程碑四态最亲和：条尾文字可直接换成「✓ hit / ◐ at-risk + 2 天缓冲」。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/tapd-plan.png"><span class="badge">腾讯 TAPD</span><img src="images/tapd-plan.png" alt="TAPD 甘特与完成率"></div>
+      <figcaption>
+        <h3>EPIC 折叠甘特 + 完成率环<a href="https://www.tapd.cn/nwx/official/index" target="_blank">来源↗</a></h3>
+        <ul><li>EPIC/STORY/TSTORY 三级标签折叠；汇总条「迭代需求01」+ 右侧卡片（P0/工作量/进度条 50%）</li><li>左下角悬浮 KPI 卡：工作完成率 90% 环（已完成 200 / 总数 263）</li></ul>
+        <div class="rd"><b>RD</b> 「角落悬浮 KPI 卡」是低成本宏观微件：任何视图上叠一个完成率环即可。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/dhtmlx-screen-3.webp"><span class="badge">dhtmlxGantt</span><img src="images/dhtmlx-screen-3.webp" alt="汇总条进度填充浅色"></div>
+      <figcaption>
+        <h3>汇总条进度填充 · 浅色<a href="https://dhtmlx.com/docs/products/dhtmlxGantt/" target="_blank">来源↗</a></h3>
+        <ul><li>Project/Task 两级汇总条，条内深色段=完成度</li><li>叶子任务依赖链清晰，WBS 编号列</li></ul>
+        <div class="rd"><b>RD</b> 折叠态宏观条必须携带微观进度的最小实现样例。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/dhtmlx-screen-1.webp"><span class="badge">dhtmlxGantt</span><img src="images/dhtmlx-screen-1.webp" alt="深色甘特汇总条与里程碑"></div>
+      <figcaption>
+        <h3>分组配色条 + 里程碑钻石 · 浅色<a href="https://dhtmlx.com/docs/products/dhtmlxGantt/" target="_blank">来源↗</a></h3>
+        <ul><li>绿/青=分组汇总条（含进度填充）、蓝=任务条、黄钻=里程碑（Beta Release / ID: #25）</li><li>用条形颜色区分分组语义，折叠展开两种粒度同屏</li></ul>
+        <div class="rd"><b>RD</b> riskdeck 里程碑四态（planned/at-risk/hit/missed）可用同一菱形四色表达。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/dhtmlx-screen-4.webp"><span class="badge">dhtmlxGantt</span><img src="images/dhtmlx-screen-4.webp" alt="深色甘特另一例"></div>
+      <figcaption>
+        <h3>深色主题 · 依赖高亮<a href="https://dhtmlx.com/docs/products/dhtmlxGantt/" target="_blank">来源↗</a></h3>
+        <ul><li>红色依赖线=关键链路告警路径的常用配色语言</li><li>折叠分组与跨组依赖同屏</li></ul>
+        <div class="rd"><b>RD</b> 依赖边表渲染时，把「通往 at-risk 节点」的边染红即是风险传播视图。</div>
+      </figcaption>
+    </figure>
+  </div>
+
+  <h2 id="s3">③ 负载与风险</h2>
+  <p class="sub">把「忙不过来」「要延期」变成颜色与位置编码。</p>
+  <div class="grid">
+    <figure>
+      <div class="imgwrap" data-full="images/tpg-mta-4.png"><span class="badge">TPG / MS Project</span><img src="images/tpg-mta-4.png" alt="里程碑趋势分析MTA"></div>
+      <figcaption>
+        <h3>里程碑趋势分析 MTA<a href="https://www.theprojectgroup.com/blog/en/milestone-trend-analysis-ms-project/" target="_blank">来源↗</a></h3>
+        <ul><li>x=报告期、y=里程碑预测日期；45°线=完成线，今日线竖切</li><li>点在线上方=里程碑后推（危险）、下方=提前、落线=完成；彩色点=各里程碑</li></ul>
+        <div class="rd"><b>RD</b> 「计划被反复改动」本身就是风险信号；events 里的里程碑变更历史可直接重放成 MTA。</div>
+      </figcaption>
+    </figure>
+  </div>
+
+  <h2 id="s4">④ 趋势 · 预测 · 历史</h2>
+  <p class="sub">回答「照当前速度，能不能按时做完」和「过去改过什么」。</p>
+  <div class="grid">
+    <figure>
+      <div class="imgwrap" data-full="images/tpg-evm-2.png"><span class="badge">TPG / MS Project</span><img src="images/tpg-evm-2.png" alt="SPI/CPI气泡象限图"></div>
+      <figcaption>
+        <h3>SPI/CPI 气泡象限图（组合一屏折叠）<a href="https://www.theprojectgroup.com/blog/en/earned-value-analysis-with-microsoft-project/" target="_blank">来源↗</a></h3>
+        <ul><li>x=进度指数 SPI、y=成本指数 CPI，气泡大小=预算规模；绿/黄/红=健康分级</li><li>四象限文字直读结论（cheaper & faster…），同心环=目标容差带</li></ul>
+        <div class="rd"><b>RD</b> 「多项目折叠成一张图」的极致形态；riskdeck 可用 (x=进度偏差, y=里程碑风险数) 做同构象限。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/clickup-dashboard.png"><span class="badge">ClickUp</span><img src="images/clickup-dashboard.png" alt="ClickUp AI仪表盘"></div>
+      <figcaption>
+        <h3>AI 执行摘要 + 速率预测仪表盘<a href="https://clickup.com/features/dashboards" target="_blank">来源↗</a></h3>
+        <ul><li>左：自然语言项目健康摘要（谁落后了、为什么、接下来怎么办）</li><li>右：当前速率 23pts vs 预测 30pts，柱状+虚线预测，按 sprint 对比</li></ul>
+        <div class="rd"><b>RD</b> 宏观页顶部「一句话健康结论 + 一张预测图」的版式范本；速率外推可基于 events 时间密度。</div>
+      </figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap" data-full="images/bryntum-versions.png"><span class="badge">Bryntum Gantt</span><img src="images/bryntum-versions.png" alt="甘特+变更历史"></div>
+      <figcaption>
+        <h3>甘特 + 变更历史面板<a href="https://bryntum.com/products/gantt/" target="_blank">来源↗</a></h3>
+        <ul><li>右侧时间倒序流：Resized task… / Moved task… / Saved by Amit…，每条带精确时间戳</li><li>Undo/Redo + 版本保存（Named only / Changes only 过滤）</li></ul>
+        <div class="rd"><b>RD</b> 与 events.jsonl「只追加历史」理念同构：事件流升格为 UI 一等公民， timeline 页可直接复用。</div>
+      </figcaption>
+    </figure>
+  </div>
+
+  <h2 id="s5">⑤ 模式速查 <small>详见同目录 <code>pm-gantt-risk-views.md</code></small></h2>
+  <div class="patterns">
+    <a href="pm-gantt-risk-views.md"><h4>里程碑趋势分析 MTA</h4><p>把「计划被反复改动」变成预警曲线；45° 完成线</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>EVM 挣值 S 曲线</h4><p>PV/EV/AC 三线 + SPI/CPI 指数；天然可层层加总</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>蒙特卡洛 S 曲线 + 龙卷风图</h4><p>P10/P50/P90 概率承诺；先治哪个风险</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>风险矩阵 + 气泡图</h4><p>概率×影响热力格计数；气泡=暴露值</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>燃尽 / 燃起 / CFD</h4><p>能否按期清零；瓶颈与 WIP 膨胀</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>贡献热力日历</h4><p>事件密度/风险密度年历；断档即停滞</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>treemap / sunburst / icicle</h4><p>面积=工作量、颜色=健康度的层级折叠原型</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>语义缩放 / 多精度观察</h4><p>zoomable treemap、overview+detail、汇总条、分级刻度</p></a>
+    <a href="pm-gantt-risk-views.md"><h4>风险燃尽 + 行内 sparkline</h4><p>折叠但保留统计的最小微件；列表即仪表盘</p></a>
+  </div>
+</main>
+
+<footer>调研样图仅供内部设计参照，版权归各官方产品所有 · riskdeck research · 生成于 2026-02</footer>
+<div id="lb"><img id="lbimg" alt=""></div>
+<script>
+  const lb = document.getElementById('lb'), img = document.getElementById('lbimg');
+  document.querySelectorAll('.imgwrap').forEach(w => w.addEventListener('click', () => { img.src = w.dataset.full; lb.style.display = 'flex'; }));
+  lb.addEventListener('click', () => { lb.style.display = 'none'; img.src = ''; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { lb.style.display = 'none'; img.src = ''; } });
+</script>
+</body>
+</html>

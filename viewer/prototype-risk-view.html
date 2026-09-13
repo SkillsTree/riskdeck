@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RiskDeck · 风险视图原型 v2（目标/任务/里程碑/四类风险）</title>
+<!-- ============================================================
+  PROTOTYPE v2 — 风险视图三变体（用完即弃）
+  术语（与需求方对齐）：
+    项目目标 = 关键能力/指标集合，配评价体系 + 量化准入门槛（门禁）
+    任务 = 目标的实现路径，可拆解（一级→N 级，建议 ≤5）；每个父任务的首个子任务 = 拆解任务
+    任务目标 = 体现任务完成的关键指标集合；任务有 FTE 契约完成期限
+    里程碑 = 挑选的一组一级（或二级）任务的集合，全员达成才算达成
+    风险四类 = 进度 / 资源 / 关键问题 / 质量（过不了评价门禁）
+    Event = 可跟踪原子事件或集合；汇报是阶段性的 → 宏观视图需体现可输入时间段内的事件状态变化
+  三变体：A 驾驶舱泳道 / B 矩阵气泡 / C 时间泳道热力。?variant= 切换，←/→ 键盘。
+  mock 数据与上述模型同构；阶段窗口（7/14/30/90/自定义天数）全局生效。
+============================================================ -->
+<style>
+:root{
+  --bg:#fcfcfd; --surface:#ffffff; --subtle:#f4f5f8; --hover:#eef0f4;
+  --border:rgba(19,23,32,.08); --border2:rgba(19,23,32,.14);
+  --fg:#17191f; --fg2:#6b7280; --fg3:#9aa1ad;
+  --accent:#4f5bd5; --accent-soft:rgba(79,91,213,.09); --accent-ring:rgba(123,134,232,.35);
+  --m-planned:#8d97ab; --m-at-risk:#e0912f; --m-hit:#3fa871; --m-missed:#e05252;
+  --cat-prog:#e0912f; --cat-res:#9b7ede; --cat-prob:#e05252; --cat-qual:#4f86d5;
+  --st-todo:#a6adba; --st-wip:#4f5bd5; --st-done:#3fa871;
+  --shadow-pop:0 12px 40px rgba(15,18,28,.16), 0 2px 8px rgba(15,18,28,.08);
+  --shadow-peek:-12px 0 32px rgba(15,18,28,.10);
+}
+html.dark{
+  --bg:#0e0f13; --surface:#16171d; --subtle:#1c1e26; --hover:#22242e;
+  --border:rgba(235,238,245,.07); --border2:rgba(235,238,245,.14);
+  --fg:#eceef2; --fg2:#9ba1ac; --fg3:#6a707c;
+  --accent:#7b86e8; --accent-soft:rgba(123,134,232,.12); --accent-ring:rgba(123,134,232,.4);
+  --m-planned:#8d97ab; --m-at-risk:#e8a04a; --m-hit:#57c08a; --m-missed:#e86464;
+  --cat-prog:#e8a04a; --cat-res:#ab8ae8; --cat-prob:#e86464; --cat-qual:#6a9de8;
+  --st-todo:#7b8394; --st-wip:#7b86e8; --st-done:#57c08a;
+  --shadow-pop:0 12px 40px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+  --shadow-peek:-12px 0 32px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{font:13px/1.55 -apple-system,"PingFang SC","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+kbd{font:11px ui-monospace,Menlo,monospace;background:var(--subtle);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--fg2)}
+
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;gap:10px;height:46px;padding:0 14px;flex:none;
+  background:var(--surface);border-bottom:1px solid var(--border)}
+#brand{display:flex;align-items:baseline;gap:8px}
+#brand h1{font-size:13.5px;font-weight:650;margin:0}
+#brand .proto{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--cat-prob);border:1px solid var(--cat-prob);border-radius:5px;padding:0 6px;line-height:16px}
+.nav{display:flex;gap:2px;margin-left:6px;background:var(--subtle);border-radius:8px;padding:2px}
+.nav button{padding:3.5px 12px;border-radius:6px;color:var(--fg2);font-weight:500}
+.nav button:hover{color:var(--fg)}
+.nav button.on{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:0 1px 3px rgba(15,18,28,.10)}
+.hspace{flex:1}
+.ibtn{height:28px;padding:0 10px;border-radius:7px;color:var(--fg3);font-size:12.5px;border:1px solid var(--border)}
+.ibtn:hover{color:var(--fg);border-color:var(--border2)}
+
+#note{display:flex;gap:14px;align-items:center;padding:6px 16px;font-size:11.5px;color:var(--fg2);
+  background:var(--subtle);border-bottom:1px solid var(--border);flex:none;flex-wrap:wrap}
+#note b{color:var(--fg)}
+.wseg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:1px;margin-left:6px}
+.wseg button{padding:1px 9px;font-size:11px;color:var(--fg2);border-radius:5px}
+.wseg button.on{background:var(--accent-soft);color:var(--accent);font-weight:650}
+.wseg input{width:46px;font:inherit;font-size:11px;text-align:center;border:0;background:transparent;color:var(--fg);outline:none}
+#winLbl{color:var(--accent);font-weight:650}
+
+main{flex:1;min-height:0;position:relative}
+.variant{position:absolute;inset:0;display:none;overflow:auto}
+.variant.on{display:block}
+
+/* ---------- 共享部件 ---------- */
+.kpis{display:flex;gap:10px;padding:12px 16px 2px;flex-wrap:wrap}
+.kpi{display:flex;align-items:baseline;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 14px}
+.kpi .n{font-size:21px;font-weight:700;letter-spacing:-.02em}
+.kpi .l{font-size:11px;color:var(--fg2)}
+.kpi.crit .n{color:var(--cat-prob)} .kpi.high .n{color:var(--cat-prog)} .kpi.acc .n{color:var(--accent)} .kpi.ok .n{color:var(--m-hit)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--cat-prob);position:relative;flex:none;align-self:center}
+.pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--cat-prob);animation:pu 1.6s infinite}
+@keyframes pu{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--fg2);background:var(--subtle);border-radius:6px;padding:1.5px 7px;white-space:nowrap}
+.chip.warn{color:var(--cat-prog);background:color-mix(in srgb,var(--cat-prog) 12%,transparent)}
+.chip.bad{color:var(--cat-prob);background:color-mix(in srgb,var(--cat-prob) 12%,transparent)}
+.chip.good{color:var(--m-hit);background:color-mix(in srgb,var(--m-hit) 12%,transparent)}
+.chip.acc{color:var(--accent);background:var(--accent-soft)}
+.dia{font-size:9px;line-height:1}
+.ms-planned{color:var(--m-planned)}.ms-at-risk{color:var(--m-at-risk)}.ms-hit{color:var(--m-hit)}.ms-missed{color:var(--m-missed)}
+.dia.ms-at-risk{filter:drop-shadow(0 0 3px color-mix(in srgb,var(--m-at-risk) 60%,transparent))}
+.spark{display:block}
+.sev{font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+.sev.crit{color:#fff;background:var(--cat-prob)}.sev.high{color:#fff;background:var(--cat-prog)}
+.sev.med{color:var(--fg);background:color-mix(in srgb,#d4b23f 45%,transparent)}.sev.low{color:var(--fg2);background:var(--subtle)}
+.cat-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--fg2);background:var(--subtle);border-radius:6px;padding:1.5px 7px;white-space:nowrap}
+.cat-chip i{width:7px;height:7px;border-radius:2px;background:var(--c)}
+.cat-prog{--c:var(--cat-prog)} .cat-res{--c:var(--cat-res)} .cat-prob{--c:var(--cat-prob)} .cat-qual{--c:var(--cat-qual)}
+.cat-chip.hot{color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);font-weight:600}
+.gate{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:5px}
+.gate.pass{color:var(--m-hit);background:color-mix(in srgb,var(--m-hit) 13%,transparent)}
+.gate.fail{color:var(--cat-prob);background:color-mix(in srgb,var(--cat-prob) 13%,transparent)}
+.gate.na{color:var(--fg3);background:var(--subtle)}
+.ring{width:18px;height:18px;border-radius:50%;position:relative;flex:none}
+.ring::after{content:"";position:absolute;inset:3.5px;border-radius:50%;background:var(--surface)}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;z-index:1}
+.evline{display:flex;gap:9px;font-size:12px;padding:4.5px 0;align-items:baseline;border-bottom:1px dashed var(--border)}
+.evline:last-child{border-bottom:0}
+.edot{width:8px;height:8px;border-radius:50%;flex:none;position:relative;top:1.5px}
+.ed{color:var(--fg3);font-size:11px;min-width:46px;flex:none}
+.etxt{color:var(--fg2)} .etxt b{color:var(--fg);font-weight:600}
+.rrow{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:start;padding:9px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--bg)}
+.rrow .t{font-weight:550} .rrow .m{font-size:11px;color:var(--fg2);margin-top:1px}
+.sechead{font-size:11px;font-weight:600;color:var(--fg3);letter-spacing:.05em;margin:14px 0 8px}
+.sechead:first-child{margin-top:0}
+
+.sheet{position:fixed;top:0;right:0;bottom:0;width:500px;max-width:94vw;background:var(--surface);
+  border-left:1px solid var(--border);box-shadow:var(--shadow-peek);transform:translateX(105%);
+  transition:transform .22s ease;z-index:40;display:flex;flex-direction:column}
+.sheet.on{transform:none}
+.sheet header{height:auto;border-bottom:1px solid var(--border);padding:12px 16px;background:var(--surface)}
+.sheet .body{flex:1;overflow:auto;padding:14px 16px 24px}
+.drawer{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border2);
+  box-shadow:var(--shadow-pop);transform:translateY(105%);transition:transform .22s ease;z-index:40;max-height:48vh;display:flex;flex-direction:column}
+.drawer.on{transform:none}
+.drawer .dhead{display:flex;align-items:center;padding:10px 18px;border-bottom:1px solid var(--border)}
+.drawer .body{overflow:auto;padding:10px 18px 18px}
+.x{margin-left:auto;color:var(--fg3);font-size:15px;width:26px;height:26px;border-radius:7px}
+.x:hover{background:var(--subtle);color:var(--fg)}
+.dimmer{position:fixed;inset:0;background:rgba(10,12,18,.32);opacity:0;pointer-events:none;transition:.2s;z-index:30}
+.dimmer.on{opacity:1;pointer-events:auto}
+
+/* ---------- 变体 A：驾驶舱泳道 ---------- */
+.lanes{padding:10px 16px 90px}
+.lane{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.lane.open{border-color:var(--border2);box-shadow:0 2px 10px rgba(15,18,28,.05)}
+.laneHead{display:flex;gap:14px;align-items:center;padding:12px 14px;cursor:pointer;position:relative;flex-wrap:wrap}
+.laneHead:hover{background:var(--hover)}
+.laneHead .caret{color:var(--fg3);font-size:9px;transition:transform .15s;flex:none}
+.lane.open>.laneHead .caret{transform:rotate(90deg)}
+.lh-name{min-width:170px;max-width:230px}
+.lh-name .pname{font-weight:650;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lh-name small{display:block;font-size:11px;color:var(--fg3)}
+.lh-goals{display:flex;gap:5px;align-items:center}
+.lh-mid{flex:1;min-width:260px;display:flex;flex-direction:column;gap:5px}
+.lh-right{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.chipline{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.track{display:flex;align-items:center;height:22px;position:relative}
+.track .rail{position:absolute;left:0;right:0;top:10.5px;height:1px;background:var(--border2)}
+.track .today{position:absolute;top:1px;bottom:1px;width:1.5px;background:var(--accent);opacity:.7}
+.track .dia{position:absolute;top:6px;transform:translateX(-50%);font-size:10px;cursor:default}
+.laneBody{display:none;border-top:1px solid var(--border);padding:10px 14px 14px;background:var(--bg)}
+.lane.open>.laneBody{display:block}
+.trow{display:grid;grid-template-columns:minmax(180px,260px) 110px minmax(120px,1fr) auto auto;gap:12px;align-items:center;
+  padding:8px 10px;border-radius:9px;cursor:pointer}
+.trow:hover{background:var(--hover)}
+.trow .tn{font-weight:550;font-size:12.5px;display:flex;align-items:center;gap:6px;min-width:0}
+.trow .tn .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .meta{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.stdot{width:8px;height:8px;border-radius:50%;flex:none}
+.gbar{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fg2)}
+.gbar .bar{flex:1;height:4px;border-radius:2px;background:var(--border);overflow:hidden;min-width:50px}
+.gbar .bar i{display:block;height:100%}
+.decomp{font-size:10px;border-radius:5px;padding:0 6px;line-height:16px;font-weight:600;flex:none}
+.decomp.ok{color:var(--cat-res);background:color-mix(in srgb,var(--cat-res) 13%,transparent)}
+.decomp.miss{color:var(--fg3);background:var(--subtle);border:1px dashed var(--border2)}
+
+/* ---------- 变体 B：矩阵气泡 ---------- */
+#vB .wrap{display:grid;grid-template-columns:minmax(430px,1fr) 390px;gap:14px;padding:14px 16px 90px;align-items:start}
+.mx{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 18px 12px;position:relative}
+.mx h3{margin:0 0 2px;font-size:13px} .mx .sub{font-size:11px;color:var(--fg3);margin-bottom:12px}
+.mxgrid{position:relative;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:86px;gap:4px;
+  border-left:2px solid var(--border2);border-bottom:2px solid var(--border2)}
+.mcell{border-radius:8px;position:relative}
+.mcell .c{position:absolute;top:5px;right:7px;font-size:10.5px;color:var(--fg2);font-weight:600}
+.mxaxis{position:absolute;font-size:10.5px;color:var(--fg2);font-weight:600;letter-spacing:.05em}
+.bub{position:absolute;transform:translate(-50%,-50%);border-radius:50%;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:2.5px solid var(--surface);box-shadow:0 2px 10px rgba(15,18,28,.25);transition:.15s;color:#fff;font-weight:700;text-align:center;line-height:1.15}
+.bub:hover{filter:brightness(1.08);z-index:5}
+.bub.sel{outline:3px solid var(--accent-ring);outline-offset:2px;z-index:6}
+.bub small{font-weight:500;font-size:9.5px;opacity:.95;display:block}
+.bub .catmini{display:flex;gap:3px;justify-content:center;margin-top:2px}
+.bub .catmini i{width:5px;height:5px;border-radius:1.5px}
+.rail{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
+.rail h3{margin:0 0 10px;font-size:13px;display:flex;align-items:center}
+.rail .winbox{border:1px dashed var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:12px;background:var(--bg)}
+.catbars{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px}
+.catbars .cb{display:grid;grid-template-columns:64px 1fr 30px;gap:8px;align-items:center;font-size:11.5px;color:var(--fg2)}
+.catbars .cb .tr{height:8px;border-radius:4px;background:var(--subtle);overflow:hidden}
+.catbars .cb .tr i{display:block;height:100%;border-radius:4px}
+.legend{display:flex;gap:12px;margin-top:10px;font-size:11px;color:var(--fg2);flex-wrap:wrap}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+.goalcard{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg)}
+.goalcard .gn{font-weight:600;font-size:12.5px;display:flex;gap:8px;align-items:center}
+.goalcard .gg{font-size:11px;color:var(--fg2);margin-top:3px}
+.goalcard .gg kbd{font-size:10px}
+
+/* ---------- 变体 C：时间泳道热力（格=当周事件数） ---------- */
+#vC .tl{padding:12px 16px 90px}
+.gridtl{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.ghead,.grow{display:grid;grid-template-columns:230px 1fr 190px;align-items:center}
+.ghead{border-bottom:1px solid var(--border);background:var(--subtle);font-size:10.5px;color:var(--fg2)}
+.ghead>div{padding:7px 10px}
+.wks{display:grid;grid-template-columns:repeat(12,1fr)}
+.wks span{text-align:center;padding:2px 0;border-left:1px dashed var(--border);position:relative}
+.wks span.fut{color:var(--fg3)}
+.wks span.inwin::after{content:"";position:absolute;left:4px;right:4px;bottom:0;height:2px;border-radius:2px;background:var(--accent)}
+.grow{border-top:1px solid var(--border)}
+.grow>.name{padding:10px;display:flex;gap:8px;align-items:center;cursor:pointer;min-width:0}
+.grow>.name:hover{background:var(--hover)}
+.grow>.name .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grow>.name small{display:block;color:var(--fg3);font-weight:450;font-size:10.5px}
+.grow>.cells{padding:8px 6px}
+.cells .cs{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;position:relative}
+.cells .cs i{aspect-ratio:1.55;border-radius:3.5px;cursor:pointer;transition:.1s;background:var(--subtle)}
+.cells .cs i:hover{outline:1.5px solid var(--accent)}
+.cells .cs i.fut{background:transparent;border:1px dashed var(--border)}
+.cells .cs i.inwin{box-shadow:inset 0 0 0 1px var(--accent-ring)}
+.cells .cs .today{position:absolute;top:-4px;bottom:-4px;width:1.5px;background:var(--accent);opacity:.65}
+.cells .cs .dia{position:absolute;top:-3px;transform:translateX(-50%);font-size:9px;cursor:default}
+.grow>.sum{padding:8px 12px;display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.blk .subrows{display:none}
+.blk.open .subrows{display:block}
+.blk.open>.grow>.name>.cv{transform:rotate(90deg)}
+.cv{color:var(--fg3);font-size:9px;transition:transform .15s;flex:none}
+.subrows .grow{border-top:1px dashed var(--border)}
+.subrows .grow>.name{padding-left:34px}
+.subrows .grow>.name .nm{font-weight:500;font-size:12px}
+
+/* ---------- 切换条 ---------- */
+#switch{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:4px;
+  background:var(--fg);color:var(--bg);border-radius:999px;padding:5px 7px;box-shadow:var(--shadow-pop);font-size:12px;font-weight:600;user-select:none}
+html.dark #switch{background:#e8eaee;color:#101318}
+#switch button{width:26px;height:26px;border-radius:50%;color:inherit;display:flex;align-items:center;justify-content:center;font-size:13px}
+#switch button:hover{background:rgba(127,127,127,.22)}
+#switch .lab{padding:0 8px;min-width:170px;text-align:center}
+#switch .lab small{opacity:.66;font-weight:500}
+.toast{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);
+  padding:6px 14px;border-radius:8px;font-size:12px;opacity:0;transition:.25s;pointer-events:none;z-index:70}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div id="brand"><h1>RiskDeck</h1><span class="proto">PROTOTYPE v2</span></div>
+    <nav class="nav">
+      <button data-v="结构">结构</button>
+      <button data-v="时间线">时间线</button>
+      <button class="on">风险</button>
+      <button data-v="目标">目标</button>
+    </nav>
+    <div class="hspace"></div>
+    <span style="font-size:11.5px;color:var(--fg3)">快照 2026-02-14 · mock</span>
+    <button class="ibtn" id="themeBtn">◐ 主题</button>
+  </header>
+  <div id="note">
+    <span><b>风险视图 v2</b> · 目标/门禁 · 任务树（首子任务=拆解） · 里程碑=任务集合 · <b>风险四类</b>：
+      <span class="cat-chip cat-prog"><i></i>进度</span>
+      <span class="cat-chip cat-res"><i></i>资源</span>
+      <span class="cat-chip cat-prob"><i></i>关键问题</span>
+      <span class="cat-chip cat-qual"><i></i>质量</span>
+    </span>
+    <span style="margin-left:auto;display:flex;align-items:center">阶段汇报窗口
+      <span class="wseg" id="winSeg">
+        <button data-win="7">7 天</button><button data-win="14">14 天</button>
+        <button data-win="30">30 天</button><button data-win="90">90 天</button>
+        <input id="winInput" type="number" min="1" max="365" title="自定义天数，回车生效" placeholder="自定义">
+      </span>
+      <span id="winLbl"></span>
+    </span>
+  </div>
+  <main>
+    <div class="variant" id="vA"></div>
+    <div class="variant" id="vB"></div>
+    <div class="variant" id="vC"></div>
+  </main>
+</div>
+
+<div class="dimmer" id="dim"></div>
+<div class="sheet" id="sheetA"><header><b id="sheetATitle"></b><button class="x" data-close>✕</button></header><div class="body" id="sheetABody"></div></div>
+<div class="sheet" id="sheetB"><header><b id="sheetBTitle"></b><button class="x" data-close>✕</button></header><div class="body" id="sheetBBody"></div></div>
+<div class="drawer" id="drawerC"><div class="dhead"><b id="drawerCTitle"></b><button class="x" data-close>✕</button></div><div class="body" id="drawerCBody"></div></div>
+
+<div id="switch">
+  <button id="swPrev">◀</button>
+  <div class="lab" id="swLab"></div>
+  <button id="swNext">▶</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 基础 ================= */
+const NOW = new Date(2026, 1, 14);
+const NCOL = 12, TODAY_COL = 8;
+const state = { win: 30, varKey: 'A' };
+const weekDate = c => new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate() + (c - TODAY_COL) * 7);
+const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+const D = s => { const [y,m,dd2] = s.split('-').map(Number); return new Date(y, m-1, dd2); };
+const dayDiff = (a,b) => Math.round((D(a) - D(b)) / 86400000);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const CAT = {
+  progress:{n:'进度', c:'var(--cat-prog)'},
+  resource:{n:'资源', c:'var(--cat-res)'},
+  problem:{n:'关键问题', c:'var(--cat-prob)'},
+  quality:{n:'质量', c:'var(--cat-qual)'},
+};
+const EV = {
+  'risk.open':{n:'风险登记', c:r=>CAT[r.cat] ? CAT[r.cat].c : 'var(--fg3)'},
+  'risk.close':{n:'风险解除', c:()=>'var(--m-hit)'},
+  'task.move':{n:'任务状态', c:()=>'var(--accent)'},
+  'gate':{n:'门禁评价', c:r=>r.ok?'var(--m-hit)':'var(--cat-prob)'},
+  'ms.slip':{n:'里程碑滑动', c:()=>'var(--m-at-risk)'},
+  'decomp':{n:'拆解更新', c:()=>'var(--cat-res)'},
+  'fte':{n:'资源投入', c:()=>'var(--cat-qual)'},
+};
+const catChipCls = k => ({progress:'prog', resource:'res', problem:'prob', quality:'qual'})[k];
+
+/* ================= mock：项目 = 超大任务（目标 + 一级任务树 + 里程碑集合 + 四类风险 + 事件） ================= */
+const DB = [
+ { id:'star', name:'星舟电商平台', code:'STAR',
+   goals:[
+     {n:'多渠道下单成功率 ≥ 99.5%', gate:'连续 14 天 ≥99.5%，0 P1', way:'监控大盘+巡检', due:'2026-03-31', attain:.91, st:'临界'},
+     {n:'结算链路 P99 < 80ms', gate:'压测 3 轮全过，P99<80ms', way:'压测报告', due:'2026-03-15', attain:.64, st:'未达标'},
+     {n:'对账 T+1 准确率 100%', gate:'抽样 0 差异', way:'对账报告', due:'2026-03-31', attain:.30, st:'未评估'}],
+   tasks:[
+     {n:'登录改造', due:'2026-03-01', pred:'2026-03-13', st:'wip', pct:.7, subs:5, subDone:3, decomp:true},
+     {n:'渠道聚合', due:'2026-03-10', pred:'2026-03-31', st:'wip', pct:.55, subs:6, subDone:2, decomp:true},
+     {n:'对账闭环', due:'2026-03-31', pred:null, st:'todo', pct:.1, subs:0, subDone:0, decomp:false},
+     {n:'性能整改（P99）', due:'2026-03-08', pred:'2026-03-20', st:'wip', pct:.5, subs:4, subDone:1, decomp:true}],
+   ms:[
+     {n:'登录与渠道 β', tasks:[0,1], due:'2026-03-01'},
+     {n:'对账闭环', tasks:[2], due:'2026-03-31'}],
+   risks:[
+     {cat:'problem', t:'跨渠道对账尾差无解（浮点/币种换算）', p:4, i:5, o:'赵付', st:'升级', w:[0,0,0,0,0,0,1,1,2,0,0,0]},
+     {cat:'progress', t:'渠道 SDK 未定稿，排期悬空', p:4, i:3, o:'钱渠', st:'处置中', w:[0,1,1,1,2,2,2,3,2,0,0,0]},
+     {cat:'progress', t:'登录改造预测 +12d（契约 03-01）', p:4, i:4, o:'李验', st:'处置中', w:[1,1,1,2,2,3,3,2,3,0,0,0]},
+     {cat:'quality', t:'登录 P99=142ms 未过门禁（<80ms）', p:3, i:4, o:'李验', st:'处置中', w:[0,0,1,1,2,2,3,2,2,0,0,0]},
+     {cat:'resource', t:'压测集群被抢占，预约排到 3 月', p:3, i:3, o:'王单', st:'观察', w:[0,0,0,1,1,0,1,1,1,0,0,0]}],
+   ev:[
+     {d:2,  t:'risk.open',  cat:'problem', ri:0, txt:'<b>登记关键问题</b>：对账尾差无解（支付网关）'},
+     {d:5,  t:'gate',       ok:false, txt:'<b>门禁未过</b>：登录压测 P99=142ms（门槛 <80ms）'},
+     {d:9,  t:'ms.slip',    txt:'<b>里程碑滑动</b>：登录与渠道 β 预测 +12d'},
+     {d:12, t:'task.move',  txt:'<b>登录改造/验证码解耦</b> wip → done'},
+     {d:15, t:'risk.close', cat:'quality', txt:'<b>解除</b>：缓存击穿演练通过'},
+     {d:18, t:'fte',        txt:'<b>资源投入</b>：+1.0 FTE（李验转入认证）'},
+     {d:22, t:'decomp',     txt:'<b>拆解更新</b>：对账闭环 +4 子任务'},
+     {d:26, t:'risk.open',  cat:'progress', ri:1, txt:'<b>登记进度风险</b>：渠道 SDK 未定稿'},
+     {d:33, t:'risk.open',  cat:'resource', ri:4, txt:'<b>登记资源风险</b>：压测集群排队'},
+     {d:41, t:'gate',       ok:true, txt:'<b>门禁通过</b>：SSO 打通'},
+     {d:55, t:'task.move',  txt:'<b>对账闭环</b> todo → wip'},
+     {d:70, t:'decomp',     txt:'<b>拆解更新</b>：性能整改 +4 子任务'}]},
+ { id:'mesh', name:'星链业务中台', code:'MESH',
+   goals:[
+     {n:'单集群 5w msg/s 稳定', gate:'持续 72h 无堆积', way:'压测+巡检', due:'2026-02-28', attain:.88, st:'临界'},
+     {n:'端到端延迟 < 50ms', gate:'P99<50ms', way:'链路追踪', due:'2026-03-20', attain:.42, st:'未达标'}],
+   tasks:[
+     {n:'有序消息', due:'2026-02-28', pred:'2026-03-14', st:'wip', pct:.6, subs:5, subDone:2, decomp:true},
+     {n:'幂等重投递', due:'2026-03-14', pred:null, st:'wip', pct:.35, subs:0, subDone:0, decomp:false},
+     {n:'告警治理', due:'2026-03-05', pred:'2026-03-08', st:'wip', pct:.7, subs:3, subDone:2, decomp:true}],
+   ms:[{n:'消息 GA', tasks:[0,1], due:'2026-02-28'}],
+   risks:[
+     {cat:'progress', t:'有序消息 GA 两度滑动，无新承诺日', p:4, i:4, o:'周消', st:'升级', w:[1,1,2,2,3,3,2,2,3,0,0,0]},
+     {cat:'resource', t:'5w msg/s 压测硬件缺口 3 台', p:3, i:3, o:'吴硬', st:'观察', w:[0,0,1,0,1,1,0,1,1,0,0,0]},
+     {cat:'quality', t:'堆积告警误报率 31%（门槛 <5%）', p:3, i:2, o:'周消', st:'处置中', w:[0,1,1,0,1,1,0,1,0,0,0,0]}],
+   ev:[
+     {d:3,  t:'ms.slip',   txt:'<b>里程碑滑动</b>：消息 GA 二次滑动 +7d'},
+     {d:6,  t:'risk.open', cat:'progress', ri:0, txt:'<b>登记进度风险</b>：GA 无新承诺日'},
+     {d:10, t:'gate',      ok:false, txt:'<b>门禁未过</b>：告警误报率 31%（<5%）'},
+     {d:16, t:'fte',       txt:'<b>资源投入</b>：−0.5 FTE（借调结束）'},
+     {d:21, t:'risk.open', cat:'resource', ri:1, txt:'<b>登记资源风险</b>：压测硬件缺口'},
+     {d:29, t:'task.move', txt:'<b>幂等重投递</b> todo → wip'},
+     {d:38, t:'risk.close', cat:'quality', txt:'<b>解除</b>：重复消费缺陷修复'},
+     {d:47, t:'decomp',    txt:'<b>拆解更新</b>：有序消息 +5 子任务'},
+     {d:60, t:'gate',      ok:true, txt:'<b>门禁通过</b>：4w msg/s 预压测'}]},
+ { id:'aurora', name:'极光移动端', code:'AURORA',
+   goals:[
+     {n:'2.0 Crash 率 < 0.1%', gate:'灰度全量 7 天达标', way:'崩溃平台', due:'2026-03-10', attain:.55, st:'未达标'},
+     {n:'首屏时长 < 1.5s', gate:'P90<1.5s', way:'性能巡检', due:'2026-03-01', attain:.80, st:'临界'}],
+   tasks:[
+     {n:'性能整改（首屏/帧率）', due:'2026-02-25', pred:'2026-03-06', st:'wip', pct:.65, subs:4, subDone:2, decomp:true},
+     {n:'灰度方案', due:'2026-03-06', pred:'2026-03-09', st:'wip', pct:.4, subs:3, subDone:1, decomp:true},
+     {n:'崩溃治理', due:'2026-03-06', pred:null, st:'todo', pct:.15, subs:0, subDone:0, decomp:false}],
+   ms:[{n:'2.0 发布', tasks:[0,1,2], due:'2026-03-10'}],
+   risks:[
+     {cat:'quality', t:'崩溃率 0.31% 高于 0.1% 门槛', p:3, i:4, o:'郑端', st:'处置中', w:[1,1,2,2,2,2,3,2,2,0,0,0]},
+     {cat:'progress', t:'2.0 发布预测 +9d（契约 03-10）', p:4, i:4, o:'郑端', st:'处置中', w:[0,0,1,2,2,3,3,3,2,0,0,0]},
+     {cat:'resource', t:'iOS 开发者审核账号未到位', p:3, i:3, o:'冯审', st:'观察', w:[0,0,0,1,1,1,0,1,1,0,0,0]},
+     {cat:'problem', t:'弱网推送到达率长尾，业界无成熟方案', p:3, i:4, o:'孙推', st:'升级', w:[0,0,0,0,1,1,1,2,1,0,0,0]}],
+   ev:[
+     {d:1,  t:'risk.open', cat:'quality', ri:0, txt:'<b>登记质量风险</b>：崩溃率 0.31%'},
+     {d:4,  t:'ms.slip',   txt:'<b>里程碑滑动</b>：2.0 发布预测 +9d'},
+     {d:8,  t:'risk.open', cat:'resource', ri:2, txt:'<b>登记资源风险</b>：iOS 审核账号'},
+     {d:13, t:'gate',      ok:false, txt:'<b>门禁未过</b>：首页帧率 51fps（60fps）'},
+     {d:17, t:'task.move', txt:'<b>灰度方案</b> todo → wip'},
+     {d:20, t:'risk.open', cat:'problem', ri:3, txt:'<b>登记关键问题</b>：弱网推送长尾'},
+     {d:24, t:'fte',       txt:'<b>资源投入</b>：+2.0 FTE（外包入场）'},
+     {d:31, t:'risk.close', cat:'progress', txt:'<b>解除</b>：设计稿缺口补齐'},
+     {d:45, t:'decomp',    txt:'<b>拆解更新</b>：崩溃治理 +5 子任务'},
+     {d:52, t:'gate',      ok:true, txt:'<b>门禁通过</b>：弱网用例集'}]},
+ { id:'rock', name:'磐石风控', code:'ROCK',
+   goals:[
+     {n:'规则决策 < 30ms', gate:'P99<30ms', way:'压测报告', due:'2026-03-20', attain:.95, st:'达标'},
+     {n:'回归基线覆盖 100%', gate:'核心规则全量入基线', way:'回归报告', due:'2026-03-15', attain:.40, st:'未达标'}],
+   tasks:[
+     {n:'决策流编排', due:'2026-03-20', pred:'2026-03-25', st:'wip', pct:.45, subs:4, subDone:1, decomp:true},
+     {n:'回归基线建设', due:'2026-03-15', pred:null, st:'todo', pct:.2, subs:0, subDone:0, decomp:false},
+     {n:'名单毫秒查询', due:'2026-01-30', pred:'2026-01-28', st:'done', pct:1, subs:3, subDone:3, decomp:true}],
+   ms:[
+     {n:'名单 SLA', tasks:[2], due:'2026-01-30'},
+     {n:'决策流 GA', tasks:[0,1], due:'2026-03-20'}],
+   risks:[
+     {cat:'quality', t:'规则回归基线缺失，改动无法验证', p:3, i:4, o:'褚规', st:'处置中', w:[1,0,1,1,2,1,1,2,1,0,0,0]},
+     {cat:'progress', t:'决策流编排进度滞后 15%', p:2, i:3, o:'卫流', st:'观察', w:[0,1,0,1,1,0,1,0,1,0,0,0]}],
+   ev:[
+     {d:7,  t:'risk.open', cat:'quality', ri:0, txt:'<b>登记质量风险</b>：回归基线缺失'},
+     {d:11, t:'task.move', txt:'<b>决策流编排</b> todo → wip'},
+     {d:19, t:'gate',      ok:false, txt:'<b>门禁未过</b>：规则命中率回归'},
+     {d:28, t:'decomp',    txt:'<b>拆解更新</b>：名单服务 +3 子任务'},
+     {d:36, t:'fte',       txt:'<b>资源投入</b>：+0.5 FTE'},
+     {d:49, t:'risk.close', cat:'progress', txt:'<b>解除</b>：名单毫秒查询 SLA 达标'}]},
+];
+
+/* ================= 派生聚合（真实系统由 store 滚动汇总） ================= */
+const sevOf = r => { const s = r.p * r.i; return s >= 15 ? 'crit' : s >= 9 ? 'high' : s >= 5 ? 'med' : 'low'; };
+const sevColor = {crit:'var(--cat-prob)', high:'var(--cat-prog)', med:'#d4b23f', low:'var(--m-planned)'};
+function msStatus(ms, tasks){
+  const done = ms.tasks.filter(i => tasks[i].pct >= 1).length;
+  if (done === ms.tasks.length) return {s:'hit', done, total:ms.tasks.length};
+  if (NOW > D(ms.due)) return {s:'missed', done, total:ms.tasks.length};
+  const drift = ms.tasks.some(i => tasks[i].pred && dayDiff(tasks[i].pred, ms.due) > 0);
+  if (drift) return {s:'at-risk', done, total:ms.tasks.length};
+  return {s:'planned', done, total:ms.tasks.length};
+}
+const evCol = e => TODAY_COL - Math.floor(e.d / 7);
+function aggTask(t, i){ const drift = t.pred ? dayDiff(t.pred, t.due) : null;
+  return {...t, _i:i, drift, goalAttain: Math.round(t.pct * 100)}; }
+function aggProj(p){
+  const tasks = p.tasks.map(aggTask);
+  const ms = p.ms.map(m => ({...m, ...msStatus(m, p.tasks),
+    _c: Math.min(NCOL-1, Math.max(0, TODAY_COL + Math.round((D(m.due) - NOW)/86400000/7)))}));
+  const open = p.risks.map(r => ({...r, sev:sevOf(r)}));
+  const catN = {}; for (const k in CAT) catN[k] = open.filter(r => r.cat === k).length;
+  const evWeekly = Array.from({length:NCOL}, (_, c) => p.ev.filter(e => evCol(e) === c).length);
+  const winEvents = p.ev.filter(e => e.d < state.win);
+  return {...p, tasks, ms, open, catN, evWeekly, winEvents,
+    exposure: open.reduce((a, r) => a + r.p * r.i * 10, 0),
+    crit: open.filter(r => r.sev === 'crit').length,
+    goalsOK: p.goals.filter(g => g.st === '达标').length,
+    driftTasks: tasks.filter(t => t.drift > 0).length,
+    msAtRisk: ms.filter(m => m.s === 'at-risk').length, msMissed: ms.filter(m => m.s === 'missed').length};
+}
+let P = [];
+let TOTAL = {all:[], crit:0, high:0, goalsBad:0, goalsNa:0, msAtRisk:0, msMissed:0, win:0, winOpen:0, winClose:0, winSlip:0, upgraded:0};
+function computeAll(){
+  P = DB.map(aggProj);
+  const all = P.flatMap(p => p.open.map(r => ({...r, proj:p})));
+  const winOf = k => P.reduce((a, p) => a + p.winEvents.filter(e => e.t === k).length, 0);
+  TOTAL = {all,
+    crit: all.filter(r => r.sev === 'crit').length,
+    high: all.filter(r => r.sev === 'high').length,
+    goalsBad: P.reduce((a, p) => a + p.goals.filter(g => g.st === '未达标').length, 0),
+    goalsNa: P.reduce((a, p) => a + p.goals.filter(g => g.st === '未评估').length, 0),
+    msAtRisk: P.reduce((a, p) => a + p.msAtRisk, 0),
+    msMissed: P.reduce((a, p) => a + p.msMissed, 0),
+    win: P.reduce((a, p) => a + p.winEvents.length, 0),
+    winOpen: winOf('risk.open'), winClose: winOf('risk.close'), winSlip: winOf('ms.slip'),
+    upgraded: all.filter(r => r.st === '升级').length};
+}
+
+/* 任务级风险归属（mock：按文本关键字挂接；真实系统为结构化字段 task_id） */
+const TASK_MAP = {
+  star:[['登录','P99','SSO'],['渠道','SDK','对账尾差'],[],['P99','压测']],
+  mesh:[['GA','有序','承诺'],['幂等','投递'],['告警','误报']],
+  aurora:[['帧率','首屏'],['灰度','发布','审核'],['崩溃','长尾']],
+  rock:[['决策流','编排'],['基线','回归'],['名单']],
+};
+function tagRisks(){
+  P.forEach(p => { p.open.forEach(r => { r._task = -1;
+    (TASK_MAP[p.id]||[]).forEach((keys, ti) => { if (keys.some(k => r.t.includes(k))) r._task = ti; }); }); });
+}
+
+/* ================= 小部件 ================= */
+function spark(series, w=96, h=22, color='var(--accent)'){
+  const max = Math.max(...series, 1), step = w/(series.length-1);
+  const pts = series.map((v,i)=>`${(i*step).toFixed(1)},${(h - v/max*(h-2) - 1).toFixed(1)}`).join(' ');
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+function trendOf(series){ const a = series.slice(-4).reduce((x,y)=>x+y,0), b = series.slice(-8,-4).reduce((x,y)=>x+y,0);
+  if (a === b) return {t:'→ 平', c:'var(--fg2)'}; return a > b ? {t:'↑ 活跃', c:'var(--cat-prog)'} : {t:'↓ 回落', c:'var(--m-hit)'}; }
+function heatStrip(weekly, h=26){
+  const max = Math.max(...weekly, 1);
+  return `<div style="display:flex;gap:2.5px;align-items:flex-end;height:${h}px;flex:1">${weekly.map((v,c) => {
+    if (c > TODAY_COL) return `<i style="flex:1;border-radius:2.5px;min-height:3px;background:transparent;border:1px dashed var(--border)" title="未来周"></i>`;
+    const t = v/max, bg = v === 0 ? 'var(--border)' : `color-mix(in srgb, var(--accent) ${Math.round(20+t*80)}%, var(--surface))`;
+    return `<i style="flex:1;border-radius:2.5px;min-height:3px;background:${bg};height:${Math.max(3,t*h)}px" title="第${c+1}周 · ${v} 个事件"></i>`;
+  }).join('')}</div>`;
+}
+function msTrack(ms){
+  return `<div class="track"><div class="rail"></div><div class="today" style="left:${(TODAY_COL+0.5)/NCOL*100}%"></div>
+    ${ms.map(m => `<span class="dia ms-${m.s}" title="${esc(m.n)} · 任务 ${m.done}/${m.total} · 契约 ${m.due}${m.s==='at-risk'?' · 成员任务预测滑动':''}${m.s==='missed'?' · 已过契约未达成':''}" style="left:${(m._c+0.5)/NCOL*100}%">◆</span>`).join('')}</div>`;
+}
+function msChip(m){
+  const map = {planned:['',''], 'at-risk':['warn','◆预警'], hit:['good','◆达成'], missed:['bad','◆错过']};
+  const [cls, tag] = map[m.s];
+  return `<span class="chip ${cls}" title="${esc(m.n)} · 成员任务 ${m.done}/${m.total} · 契约 ${m.due}">${esc(m.n)} ${m.done}/${m.total}${tag?' '+tag:''}</span>`;
+}
+function catChips(catN){
+  return Object.keys(CAT).map(k => catN[k] ? `<span class="cat-chip cat-${catChipCls(k)}${k==='problem'?' hot':''}"><i></i>${CAT[k].n} ${catN[k]}</span>` : '').join('');
+}
+function ring(attain, st){
+  const col = st === '达标' ? 'var(--m-hit)' : st === '临界' ? 'var(--cat-prog)' : st === '未达标' ? 'var(--cat-prob)' : 'var(--m-planned)';
+  return `<span class="ring" style="background:conic-gradient(${col} ${attain*360}deg, var(--border) 0)" title="${st} ${Math.round(attain*100)}%"><b style="color:${col}">${Math.round(attain*100)}</b></span>`;
+}
+function gateTag(st){ return `<span class="gate ${st==='达标'?'pass':st==='未达标'?'fail':'na'}">${st}</span>`; }
+function winChips(p){
+  const e = p.winEvents;
+  const o = e.filter(x=>x.t==='risk.open').length, c = e.filter(x=>x.t==='risk.close').length;
+  const mv = e.filter(x=>x.t==='task.move').length, sl = e.filter(x=>x.t==='ms.slip').length;
+  const g = e.filter(x=>x.t==='gate'), gf = g.filter(x=>!x.ok).length;
+  const dcp = e.filter(x=>x.t==='decomp').length, fte = e.filter(x=>x.t==='fte').length;
+  return `<span class="chip ${o>c?'warn':o===0&&c===0?'':'acc'}" title="窗口内登记/解除">风险 +${o} −${c}</span>
+    ${mv?`<span class="chip acc" title="任务状态迁移">迁移 ${mv}</span>`:''}${sl?`<span class="chip warn" title="里程碑滑动">滑动 ${sl}</span>`:''}
+    ${g.length?`<span class="chip ${gf?'bad':'good'}" title="门禁 通过/未过">门禁 ${g.length-gf}✓/${gf}✗</span>`:''}
+    ${dcp?`<span class="chip" title="拆解任务产出">拆解 ${dcp}</span>`:''}${fte?`<span class="chip" title="资源投入变化">FTE ${fte}</span>`:''}`;
+}
+function evLines(evs, limit=10){
+  return [...evs].sort((a,b)=>a.d-b.d).slice(0, limit).map(e => `
+    <div class="evline"><span class="edot" style="background:${EV[e.t].c(e)}"></span>
+    <span class="ed">${e.d} 天前</span><span class="etxt">[${EV[e.t].n}] ${e.txt}</span></div>`).join('') ||
+    '<div class="chip" style="margin:4px">窗口内无事件</div>';
+}
+function driftChip(t){
+  if (t.drift === null) return `<span class="chip" title="尚无预测完成日">预测 —</span>`;
+  return t.drift > 0 ? `<span class="chip bad" title="契约 ${t.due} / 预测 ${t.pred}">⏱ +${t.drift}d</span>`
+    : `<span class="chip good" title="契约 ${t.due} / 预测 ${t.pred}">⏱ ${t.drift===0?'按期':t.drift+'d'}</span>`;
+}
+function toast(m){ const t = document.getElementById('toast'); t.textContent = m; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1600); }
+
+/* ================= 变体 A：驾驶舱泳道 ================= */
+function renderA(){
+  const el = document.getElementById('vA');
+  el.innerHTML = `
+  <div class="kpis">
+    <div class="kpi crit"><span class="pulse"></span><span class="n">${TOTAL.crit}</span><span class="l">危急风险</span></div>
+    <div class="kpi high"><span class="n">${TOTAL.high}</span><span class="l">高风险</span></div>
+    <div class="kpi crit"><span class="n">${TOTAL.goalsBad}</span><span class="l">目标未达标</span></div>
+    <div class="kpi"><span class="n">${TOTAL.goalsNa}</span><span class="l">目标未评估</span></div>
+    <div class="kpi high"><span class="n">${TOTAL.msAtRisk}</span><span class="l">里程碑预警</span></div>
+    <div class="kpi crit"><span class="n">${TOTAL.msMissed}</span><span class="l">已错过</span></div>
+    <div class="kpi acc"><span class="n">${TOTAL.win}</span><span class="l">窗口内事件（近 ${state.win} 天）</span></div>
+    <div class="kpi ${TOTAL.upgraded?'crit':'ok'}"><span class="n">${TOTAL.upgraded}</span><span class="l">升级中·需决策</span></div>
+  </div>
+  <div class="lanes">
+  ${P.map(p => { const tr = trendOf(p.evWeekly); return `
+    <div class="lane" id="lane-${p.id}">
+      <div class="laneHead" data-open="${p.id}">
+        <span class="caret">▶</span>
+        <div class="lh-name">
+          <div class="pname">${esc(p.name)}</div>
+          <small>${p.code} · 一级任务 ${p.tasks.length} · 契约滑动 ${p.driftTasks} 项</small>
+        </div>
+        <div class="lh-goals" title="项目目标达成度（各配评价体系与准入门槛）">${p.goals.map(g => ring(g.attain, g.st)).join('')}</div>
+        <div class="lh-mid">
+          ${msTrack(p.ms)}
+          <div class="chipline" style="justify-content:flex-start">${p.ms.map(msChip).join('')}</div>
+        </div>
+        <div class="lh-right">
+          <div class="chipline">${catChips(p.catN)}</div>
+          <div class="chipline">${winChips(p)}</div>
+        </div>
+        ${spark(p.evWeekly, 84, 22)}<span style="font-size:10.5px;color:${tr.c}">${tr.t}</span>
+      </div>
+      <div class="laneBody">
+        ${p.tasks.map(t => `
+          <div class="trow" data-peek="${p.id}|${t._i}">
+            <div class="tn"><span class="stdot" style="background:var(--st-${t.st})" title="${t.st}"></span><span class="nm">${esc(t.n)}</span>
+              ${t.decomp?`<span class="decomp ok" title="已产出拆解任务（约定：首个子任务=拆解任务）">已拆解 ${t.subs}</span>`
+                        :`<span class="decomp miss" title="尚无拆解任务——拆解质量决定目标实现上限">⚠ 未拆解</span>`}</div>
+            <div class="gbar" title="任务目标达成度"><span>${t.goalAttain}%</span><span class="bar"><i style="width:${t.goalAttain}%;background:${t.drift>0?'var(--cat-prog)':'var(--st-done)'}"></i></span></div>
+            <div class="chipline" style="justify-content:flex-start">
+              <span class="chip" title="FTE 契约完成日">契约 ${t.due.slice(5)}</span>${driftChip(t)}
+              <span class="chip" title="子任务进度">子任务 ${t.subDone}/${t.subs || '—'}</span>
+            </div>
+            <div class="meta">${(() => { const rs = p.open.filter(r => r._task === t._i); return rs.length ? `<span class="chip ${rs.some(r=>r.sev==='crit')?'bad':'warn'}">⚠ ${rs.length}</span>` : '<span class="chip good">✓</span>'; })()}</div>
+            <div></div>
+          </div>`).join('')}
+      </div>
+    </div>`;}).join('')}
+  </div>`;
+  el.querySelectorAll('[data-open]').forEach(h => h.addEventListener('click', () =>
+    document.getElementById('lane-' + h.dataset.open).classList.toggle('open')));
+  el.querySelectorAll('[data-peek]').forEach(rw => rw.addEventListener('click', e => { e.stopPropagation(); openPeekA(rw.dataset.peek); }));
+}
+function openPeekA(path){
+  const parts = path.split('|'); const pid = parts[0], ti = +parts[1];
+  const p = P.find(x => x.id === pid), t = p.tasks[ti];
+  const rs = p.open.filter(r => r._task === ti);
+  document.getElementById('sheetATitle').textContent = `${p.name} / ${t.n}`;
+  document.getElementById('sheetABody').innerHTML = `
+    <div class="sechead">任务目标 · 完成判定（达成度 ${t.goalAttain}%）</div>
+    <div class="goalcard"><div class="gn">状态 <kbd>${t.st}</kbd> ${driftChip(t)} <span class="chip">子任务 ${t.subDone}/${t.subs||'—'}</span></div>
+      <div class="gg">FTE 契约：<kbd>${t.due}</kbd>${t.pred?` · 预测 <kbd>${t.pred}</kbd>`:' · 暂无预测（预测缺失本身是进度风险输入）'}</div>
+      <div class="gg" style="margin-top:4px">${t.decomp?`<span class="decomp ok">已拆解 ${t.subs} 子任务（首子任务=拆解任务）</span>`:'<span class="decomp miss">⚠ 未拆解——建议立即产出拆解任务</span>'}</div>
+    </div>
+    <div class="sechead">本任务关联风险 ${rs.length}</div>
+    ${rs.length ? rs.map(r => `<div class="rrow"><span class="sev ${r.sev}">${r.p}×${r.i}</span>
+      <div><div class="t"><span class="cat-chip cat-${catChipCls(r.cat)}" style="margin-right:6px"><i></i>${CAT[r.cat].n}</span>${esc(r.t)}</div>
+      <div class="m">${r.o} · ${r.st} · 暴露 ${r.p*r.i*10}</div></div>${spark(r.w,64,16)}</div>`).join('')
+      : '<span class="chip good">✓ 无关联开放风险</span>'}
+    <div class="sechead">项目目标（上下文）</div>
+    ${p.goals.map(g => `<div class="goalcard"><div class="gn">${ring(g.attain, g.st)} ${esc(g.n)} ${gateTag(g.st)}</div>
+      <div class="gg">门禁：<kbd>${esc(g.gate)}</kbd> · 评价：${esc(g.way)} · 契约 <kbd>${g.due}</kbd></div></div>`).join('')}
+    <div class="sechead">阶段事件流（近 ${state.win} 天）</div>
+    ${evLines(p.winEvents, 12)}`;
+  document.getElementById('dim').classList.add('on');
+  document.getElementById('sheetA').classList.add('on');
+}
+
+/* ================= 变体 B：矩阵气泡 ================= */
+const cellTone = (rI, cI) => { const s = rI + cI;
+  if (s >= 8) return 'color-mix(in srgb, var(--cat-prob) 26%, var(--surface))';
+  if (s >= 6) return 'color-mix(in srgb, var(--cat-prog) 20%, var(--surface))';
+  if (s >= 4) return 'color-mix(in srgb, #d4b23f 14%, var(--surface))';
+  return 'color-mix(in srgb, var(--m-hit) 8%, var(--surface))'; };
+function renderB(){
+  const el = document.getElementById('vB');
+  const pos = P.map(p => { const w = p.open.length || 1;
+    return {p, pr: p.open.reduce((a,r)=>a+r.p,0)/w, im: p.open.reduce((a,r)=>a+r.i,0)/w}; });
+  const counts = {};
+  TOTAL.all.forEach(r => { const k = (r.p-1)+'-'+(r.i-1); counts[k] = (counts[k]||0)+1; });
+  const maxCount = Math.max(...Object.values(counts), 1);
+  const catTotals = {}; for (const k in CAT) catTotals[k] = TOTAL.all.filter(r => r.cat === k).length;
+  const maxCat = Math.max(...Object.values(catTotals), 1);
+  el.innerHTML = `
+  <div class="wrap">
+    <div class="mx">
+      <h3>风险矩阵 · 项目气泡（四类风险）</h3>
+      <div class="sub">位置=开放风险加权（概率×影响）· 大小=暴露值 · 主色=最重类别 · 环内小格=四类构成 · 点击下钻</div>
+      <div style="position:relative">
+        <div class="mxgrid">
+          ${Array.from({length:5}, (_,ri) => Array.from({length:5}, (_,ci) => {
+            const r = 4-ri, c = ci, k = r+'-'+c, n = counts[k]||0;
+            return `<div class="mcell" style="background:${cellTone(r,c)}">${n?`<span class="c" style="opacity:${.35+.65*n/maxCount}">${n}</span>`:''}</div>`;
+          }).join('')).join('')}
+          ${pos.map(({p, pr, im}) => {
+            const x = (pr-0.5)/5*100, y = (5-im+0.5)/5*100;
+            const d = 36 + Math.sqrt(p.exposure)*1.0;
+            const worst = ['problem','progress','resource','quality'].find(k => p.catN[k]);
+            const col = worst ? CAT[worst].c : 'var(--m-hit)';
+            return `<div class="bub" data-bub="${p.id}" style="left:${x}%;top:${y}%;width:${d}px;height:${d}px;background:${col}">
+              <span style="pointer-events:none">${p.code}<small>${p.crit ? '危 '+p.crit : '⚠ '+p.open.length}</small>
+              <span class="catmini">${Object.keys(CAT).map(k => p.catN[k]?`<i title="${CAT[k].n} ${p.catN[k]}" style="background:${CAT[k].c}"></i>`:'').join('')}</span></span></div>`;
+          }).join('')}
+        </div>
+        <span class="mxaxis" style="left:-12px;top:50%;transform:rotate(-90deg) translateX(50%);transform-origin:left">影响 →</span>
+        <span class="mxaxis" style="bottom:-22px;left:50%;transform:translateX(-50%)">发生概率 →</span>
+      </div>
+      <div class="legend"><span>气泡主色=最重类别</span>
+        ${Object.keys(CAT).map(k => `<span><i style="background:${CAT[k].c}"></i>${CAT[k].n}</span>`).join('')}
+        <span style="margin-left:auto">角标=落格风险数</span></div>
+    </div>
+    <div class="rail">
+      <div class="winbox">
+        <div style="font-size:11px;font-weight:600;color:var(--fg3);letter-spacing:.05em;margin-bottom:6px">阶段变化（近 ${state.win} 天）</div>
+        <div class="chipline">
+          <span class="chip ${TOTAL.winOpen?'warn':''}">登记 +${TOTAL.winOpen}</span>
+          <span class="chip good">解除 −${TOTAL.winClose}</span>
+          <span class="chip ${TOTAL.winSlip?'warn':''}">滑动 ${TOTAL.winSlip}</span>
+          <span class="chip acc">事件 ${TOTAL.win}</span>
+        </div>
+      </div>
+      <h3>四类风险分布（存量）</h3>
+      <div class="catbars">${Object.keys(CAT).map(k => `
+        <div class="cb"><span><span class="catdot" style="background:${CAT[k].c};width:7px;height:7px;border-radius:2px;display:inline-block;margin-right:4px"></span>${CAT[k].n}</span>
+        <span class="tr"><i style="width:${catTotals[k]/maxCat*100}%;background:${CAT[k].c}"></i></span><b>${catTotals[k]}</b></div>`).join('')}
+      </div>
+      <h3 style="margin-top:14px">全组合排行 <span style="margin-left:auto;font-size:11px;color:var(--fg3)">按暴露值</span></h3>
+      ${TOTAL.all.sort((a,b)=>(b.p*b.i)-(a.p*a.i)).slice(0,7).map((r, idx) => `
+        <div class="rrow" style="grid-template-columns:20px 52px 1fr auto">
+          <span style="color:var(--fg3);font-weight:700">${idx+1}</span>
+          <span class="sev ${r.sev}">${r.p}×${r.i}</span>
+          <div><div class="t" style="font-size:12.5px"><span class="cat-chip cat-${catChipCls(r.cat)}" style="margin-right:6px"><i></i>${CAT[r.cat].n}</span>${esc(r.t)}</div>
+          <div class="m">${esc(r.proj.name)} · ${r.o} · ${r.st}</div></div>
+          ${spark(r.w, 52, 16)}</div>`).join('')}
+    </div>
+  </div>`;
+  el.querySelectorAll('[data-bub]').forEach(b => b.addEventListener('click', () => openPeekB(b.dataset.bub, b)));
+}
+function openPeekB(pid, bubEl){
+  const p = P.find(x => x.id === pid);
+  document.querySelectorAll('#vB .bub').forEach(b => b.classList.remove('sel'));
+  if (bubEl) bubEl.classList.add('sel');
+  document.getElementById('sheetBTitle').textContent = `${p.name} · 风险下钻`;
+  document.getElementById('sheetBBody').innerHTML = `
+    <div class="sechead">项目目标（${p.goalsOK}/${p.goals.length} 达标）</div>
+    ${p.goals.map(g => `<div class="goalcard"><div class="gn">${ring(g.attain, g.st)} ${esc(g.n)} ${gateTag(g.st)}</div>
+      <div class="gg">门禁：<kbd>${esc(g.gate)}</kbd> · 评价：${esc(g.way)} · 契约 <kbd>${g.due}</kbd></div></div>`).join('')}
+    <div class="sechead">里程碑（任务集合）</div>
+    <div class="chipline" style="margin-bottom:4px">${p.ms.map(msChip).join('')}</div>
+    <div class="sechead">四类构成</div>
+    <div class="chipline">${catChips(p.catN) || '<span class="chip good">无开放风险</span>'}</div>
+    <div class="sechead">依赖传播</div>
+    <div class="chip">本 mock 未含跨项目依赖边——真实系统由依赖边表推导：下游任务自带风险 → 连锁暴露</div>
+    <div class="sechead">阶段事件流（近 ${state.win} 天）</div>
+    ${evLines(p.winEvents, 8)}`;
+  document.getElementById('dim').classList.add('on');
+  document.getElementById('sheetB').classList.add('on');
+}
+
+/* ================= 变体 C：时间泳道热力（格=当周事件数） ================= */
+function renderC(){
+  const el = document.getElementById('vC');
+  const winCols = Math.ceil(state.win / 7);
+  const rowHTML = (p, t) => {
+    const weekly = t ? taskWeekly(p, t._i) : p.evWeekly;
+    const tr = trendOf(weekly);
+    const open = t ? p.open.filter(r => r._task === t._i) : p.open;
+    const winN = t ? p.winEvents.filter(e => evtInTask(p, t._i, e)).length : p.winEvents.length;
+    return `
+    <div class="grow">
+      <div class="name" ${t ? `data-peek="${p.id}|${t._i}"` : `data-open="${p.id}"`}>
+        ${t ? '' : '<span class="cv">▶</span>'}
+        <div class="nm">${t ? esc(t.n) : esc(p.name)}
+          <small>${t ? `${t.st} · 达成 ${t.goalAttain}%` : `${p.code} · 目标 ${p.goalsOK}/${p.goals.length} 达标`}</small></div>
+      </div>
+      <div class="cells"><div class="cs">
+        <span class="today" style="left:${(TODAY_COL+0.5)/NCOL*100}%"></span>
+        ${t ? '' : p.ms.map(m => `<span class="dia ms-${m.s}" title="${esc(m.n)} · 任务 ${m.done}/${m.total} · 契约 ${m.due}" style="left:${(m._c+0.5)/NCOL*100}%">◆</span>`).join('')}
+        ${weekly.map((v,c) => {
+          if (c > TODAY_COL) return `<i class="fut" data-cell="${t ? p.id+'|'+t._i : p.id}|${c}" title="未来周"></i>`;
+          const t2 = v/Math.max(...weekly,1);
+          const bg = v===0?'var(--subtle)':`color-mix(in srgb, var(--accent) ${Math.round(15+t2*85)}%, var(--surface))`;
+          return `<i data-cell="${t ? p.id+'|'+t._i : p.id}|${c}" class="${c > TODAY_COL - winCols ? 'inwin' : ''}" style="background:${bg}" title="第${c+1}周 · ${v} 个事件"></i>`;
+        }).join('')}
+      </div></div>
+      <div class="sum">
+        <span class="chip ${open.length?'warn':'good'}">⚠ ${open.length}</span>
+        <span class="chip acc" title="窗口内事件">⟳ ${winN}</span>
+        <span style="color:${tr.c};font-size:11px">${tr.t}</span>
+        ${spark(weekly, 56, 16)}
+      </div>
+    </div>`;
+  };
+  el.innerHTML = `
+  <div class="kpis" style="padding-bottom:6px">
+    <div class="kpi acc"><span class="n">${TOTAL.win}</span><span class="l">窗口内事件（近 ${state.win} 天）</span></div>
+    <div class="kpi ${TOTAL.winOpen?'high':'ok'}"><span class="n">+${TOTAL.winOpen}</span><span class="l">登记</span></div>
+    <div class="kpi ok"><span class="n">−${TOTAL.winClose}</span><span class="l">解除</span></div>
+    <div class="kpi ${TOTAL.winSlip?'high':''}"><span class="n">${TOTAL.winSlip}</span><span class="l">里程碑滑动</span></div>
+    <div class="kpi crit"><span class="n">${TOTAL.crit}</span><span class="l">危急（存量）</span></div>
+    <div class="kpi"><span class="n" style="font-size:12.5px;line-height:1.6;color:var(--fg2)">格=当周事件数（蓝） · ◆里程碑按契约日落位 · 高亮列=所选窗口 · 点格看当周事件</span></div>
+  </div>
+  <div class="tl"><div class="gridtl">
+    <div class="ghead"><div>项目 / 一级任务</div>
+      <div class="wks">${Array.from({length:NCOL}, (_,c) => `<span class="${c>TODAY_COL?'fut':''} ${c>TODAY_COL-winCols?'inwin':''}">${fmt(weekDate(c))}</span>`).join('')}</div>
+      <div style="text-align:right">摘要（风险 / 窗口）</div></div>
+    ${P.map(p => `<div class="blk" id="blk-${p.id}">${rowHTML(p)}<div class="subrows">${p.tasks.map(t => rowHTML(p, t)).join('')}</div></div>`).join('')}
+  </div></div>`;
+  el.querySelectorAll('[data-open]').forEach(h => h.addEventListener('click', () =>
+    document.getElementById('blk-' + h.dataset.open).classList.toggle('open')));
+  el.querySelectorAll('[data-peek]').forEach(h => h.addEventListener('click', e => { e.stopPropagation(); openPeekA(h.dataset.peek); }));
+  el.querySelectorAll('[data-cell]').forEach(c => c.addEventListener('click', e => { e.stopPropagation(); openDrawerC(c.dataset.cell); }));
+}
+function evtInTask(p, ti, e){
+  if (e.t === 'risk.open' || e.t === 'risk.close'){
+    if (e.ri == null || !p.open[e.ri]) return false;
+    return p.open[e.ri]._task === ti;
+  }
+  return e.txt.includes(p.tasks[ti].n.split('（')[0]);
+}
+function taskWeekly(p, ti){
+  return Array.from({length:NCOL}, (_, c) => p.ev.filter(e => evCol(e) === c && evtInTask(p, ti, e)).length);
+}
+function openDrawerC(key){
+  const parts = key.split('|'); let pid, ti = null, c;
+  if (parts.length === 3){ [pid, ti, c] = parts; ti = +ti; } else { [pid, c] = parts; }
+  c = +c;
+  const p = P.find(x => x.id === pid);
+  const lo = c*7, hi = c*7+6;
+  let evs = p.ev.filter(e => e.d >= lo && e.d <= hi);
+  if (ti !== null) evs = evs.filter(e => evtInTask(p, ti, e));
+  document.getElementById('drawerCTitle').textContent =
+    `第 ${c+1} 周（${fmt(weekDate(c))} 起）· ${ti!==null ? p.tasks[ti].n : p.name} · ${evs.length} 个事件`;
+  document.getElementById('drawerCBody').innerHTML = evLines(evs, 14);
+}
+
+/* ================= 交互外壳 ================= */
+function closeSheets(){
+  document.querySelectorAll('.sheet,.drawer').forEach(s => s.classList.remove('on'));
+  document.getElementById('dim').classList.remove('on');
+}
+document.getElementById('dim').addEventListener('click', closeSheets);
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+
+const VS = [
+  {k:'A', name:'驾驶舱泳道', desc:'目标环·里程碑集合·四类chips·阶段变化', render:renderA},
+  {k:'B', name:'矩阵气泡', desc:'5×5 概率×影响·四类构成·阶段变化', render:renderB},
+  {k:'C', name:'时间泳道热力', desc:'周×事件密度·窗口高亮·点格看事件', render:renderC},
+];
+function rerender(){ computeAll(); tagRisks(); VS.forEach(v => v.render()); setVariant(state.varKey, false); }
+function setVariant(k, push=true){
+  state.varKey = k;
+  const i = VS.findIndex(v => v.k === k);
+  VS.forEach(v => document.getElementById('v'+v.k).classList.toggle('on', v.k === k));
+  document.getElementById('swLab').innerHTML = `${VS[i].k} <small>${VS[i].name} · ${VS[i].desc}</small>`;
+  if (push) history.replaceState(null, '', `?variant=${k}`);
+  localStorage.setItem('rd.protoRisk', k);
+}
+document.getElementById('swPrev').addEventListener('click', () => step(-1));
+document.getElementById('swNext').addEventListener('click', () => step(1));
+function step(d){
+  const cur = VS.findIndex(v => v.k === state.varKey);
+  setVariant(VS[(cur + d + VS.length) % VS.length].k);
+}
+document.addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName) || document.activeElement.isContentEditable) return;
+  if (e.key === 'ArrowLeft') step(-1);
+  if (e.key === 'ArrowRight') step(1);
+});
+/* 阶段汇报窗口（可输入） */
+function setWin(days){
+  state.win = days;
+  document.querySelectorAll('#winSeg button').forEach(b => b.classList.toggle('on', +b.dataset.win === days));
+  document.getElementById('winLbl').textContent = `= 近 ${days} 天`;
+  rerender();
+}
+document.querySelectorAll('#winSeg button').forEach(b => b.addEventListener('click', () => setWin(+b.dataset.win)));
+document.getElementById('winInput').addEventListener('change', e => {
+  const v = Math.max(1, Math.min(365, +e.target.value || 0));
+  if (v){ document.querySelectorAll('#winSeg button').forEach(b => b.classList.remove('on')); setWin(v); }
+});
+document.querySelectorAll('.nav button[data-v]').forEach(b => b.addEventListener('click', () =>
+  toast(`原型仅实现「风险」视图（当前查看：${b.dataset.v}）`)));
+const themeBtn = document.getElementById('themeBtn');
+themeBtn.addEventListener('click', () => {
+  const dark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('rd.protoTheme', dark ? 'dark' : 'light');
+});
+if (localStorage.getItem('rd.protoTheme') === 'dark' ||
+   (localStorage.getItem('rd.protoTheme') === null && matchMedia('(prefers-color-scheme: dark)').matches))
+  document.documentElement.classList.add('dark');
+
+rerender();
+setVariant(location.search.match(/variant=([ABC])/)?.[1] || localStorage.getItem('rd.protoRisk') || 'A', false);
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "riskdeck",
+  "version": "0.1.0",
+  "description": "持续摄取项目计划/文档/动态信息的多项目设计与实施追踪看板。本地服务 + Web UI，CLI/HTTP/目录监听三种摄取入口，数据为 git 友好的 JSON + 只追加事件流。",
+  "type": "module",
+  "bin": {
+    "riskdeck": "bin/riskdeck.mjs"
+  },
+  "scripts": {
+    "start": "node bin/riskdeck.mjs serve",
+    "help": "node bin/riskdeck.mjs help"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "keywords": [
+    "project-tracking",
+    "risk",
+    "kanban",
+    "dashboard",
+    "agent"
+  ]
+}

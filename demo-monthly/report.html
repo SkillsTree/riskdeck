@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RiskDeck 自跟踪板 · 阶段汇报</title>
+<!-- 报告 = 查询。泳道主视图（用户选定，移植自 prototype-risk-view.html 变体A）。
+     展示元素修正：达成度=子任务完成率推导（人工修正 ±20pp 限幅并审计）；
+     趋势件=burn-up（无歧义）；车道头增 暴露值/高危/决策直达；KPI 行含 无证据达成/资产复用。
+     阶段汇报窗口控件在客户端全量重算投影。 -->
+<style>
+:root{
+  --bg:#fcfcfd; --surface:#ffffff; --subtle:#f4f5f8; --hover:#eef0f4;
+  --border:rgba(19,23,32,.08); --border2:rgba(19,23,32,.14);
+  --fg:#17191f; --fg2:#6b7280; --fg3:#9aa1ad;
+  --accent:#4f5bd5; --accent-soft:rgba(79,91,213,.09); --accent-ring:rgba(123,134,232,.35);
+  --m-planned:#8d97ab; --m-at-risk:#e0912f; --m-hit:#3fa871; --m-missed:#e05252;
+  --cat-prog:#e0912f; --cat-res:#9b7ede; --cat-prob:#e05252; --cat-qual:#4f86d5;
+  --st-todo:#a6adba; --st-wip:#4f5bd5; --st-done:#3fa871;
+  --shadow-pop:0 12px 40px rgba(15,18,28,.16), 0 2px 8px rgba(15,18,28,.08);
+  --shadow-peek:-12px 0 32px rgba(15,18,28,.10);
+}
+html.dark{
+  --bg:#0e0f13; --surface:#16171d; --subtle:#1c1e26; --hover:#22242e;
+  --border:rgba(235,238,245,.07); --border2:rgba(235,238,245,.14);
+  --fg:#eceef2; --fg2:#9ba1ac; --fg3:#6a707c;
+  --accent:#7b86e8; --accent-soft:rgba(123,134,232,.12); --accent-ring:rgba(123,134,232,.4);
+  --m-planned:#8d97ab; --m-at-risk:#e8a04a; --m-hit:#57c08a; --m-missed:#e86464;
+  --cat-prog:#e8a04a; --cat-res:#ab8ae8; --cat-prob:#e86464; --cat-qual:#6a9de8;
+  --st-todo:#7b8394; --st-wip:#7b86e8; --st-done:#57c08a;
+  --shadow-pop:0 12px 40px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+  --shadow-peek:-12px 0 32px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{font:13px/1.6 -apple-system,"PingFang SC","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+kbd{font:11px ui-monospace,Menlo,monospace;background:var(--subtle);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--fg2)}
+
+header{display:flex;align-items:center;gap:10px;height:46px;padding:0 16px;position:sticky;top:0;z-index:20;
+  background:var(--surface);border-bottom:1px solid var(--border)}
+#brand{display:flex;align-items:baseline;gap:8px}
+#brand h1{font-size:13.5px;font-weight:650;margin:0}
+#brand .proto{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--accent);border:1px solid var(--accent);border-radius:5px;padding:0 6px;line-height:16px}
+.nav{display:flex;gap:2px;margin-left:6px;background:var(--subtle);border-radius:8px;padding:2px}
+.nav button{padding:3.5px 11px;border-radius:6px;color:var(--fg2);font-weight:500;font-size:12.5px}
+.nav button:hover{color:var(--fg)}
+.nav button.on{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:0 1px 3px rgba(15,18,28,.10)}
+.hspace{flex:1}
+.ibtn{height:28px;padding:0 10px;border-radius:7px;color:var(--fg3);font-size:12px;border:1px solid var(--border)}
+.ibtn:hover{color:var(--fg);border-color:var(--border2)}
+.ibtn.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+
+#note{display:flex;gap:14px;align-items:center;padding:6px 16px;font-size:11.5px;color:var(--fg2);flex-wrap:wrap;
+  background:var(--subtle);border-bottom:1px solid var(--border);position:sticky;top:46px;z-index:19}
+#note b{color:var(--fg)}
+.wseg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:1px;margin-left:6px}
+.wseg button{padding:1px 9px;font-size:11px;color:var(--fg2);border-radius:5px}
+.wseg button.on{background:var(--accent-soft);color:var(--accent);font-weight:650}
+.wseg input{width:46px;font:inherit;font-size:11px;text-align:center;border:0;background:transparent;color:var(--fg);outline:none}
+#winLbl{color:var(--accent);font-weight:650}
+
+main{max-width:1120px;margin:0 auto;padding:12px 16px 90px}
+.kpis{display:flex;gap:10px;padding:2px 0 12px;flex-wrap:wrap}
+.kpi{display:flex;align-items:baseline;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 14px}
+.kpi .n{font-size:21px;font-weight:700;letter-spacing:-.02em}
+.kpi .l{font-size:11px;color:var(--fg2)}
+.kpi.crit .n{color:var(--cat-prob)} .kpi.high .n{color:var(--cat-prog)} .kpi.acc .n{color:var(--accent)} .kpi.ok .n{color:var(--m-hit)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--cat-prob);position:relative;flex:none;align-self:center}
+.pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--cat-prob);animation:pu 1.6s infinite}
+@keyframes pu{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--fg2);background:var(--subtle);border-radius:6px;padding:1.5px 7px;white-space:nowrap}
+.chip.warn{color:var(--cat-prog);background:color-mix(in srgb,var(--cat-prog) 12%,transparent)}
+.chip.bad{color:var(--cat-prob);background:color-mix(in srgb,var(--cat-prob) 12%,transparent)}
+.chip.good{color:var(--m-hit);background:color-mix(in srgb,var(--m-hit) 12%,transparent)}
+.chip.acc{color:var(--accent);background:var(--accent-soft)}
+.cat-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--fg2);background:var(--subtle);border-radius:6px;padding:1.5px 7px;white-space:nowrap}
+.cat-chip i{width:7px;height:7px;border-radius:2px;background:var(--c)}
+.cat-prog{--c:var(--cat-prog)} .cat-res{--c:var(--cat-res)} .cat-prob{--c:var(--cat-prob)} .cat-qual{--c:var(--cat-qual)}
+.cat-chip.hot{color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);font-weight:600}
+.sechead{font-size:11px;font-weight:600;color:var(--fg3);letter-spacing:.05em;margin:26px 0 8px}
+section.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--fg2);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11.5px}
+td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:0}
+
+/* ---------- 泳道 ---------- */
+.lanes{display:flex;flex-direction:column;gap:10px}
+.lane{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.laneHead{display:flex;gap:14px;align-items:center;padding:12px 14px;cursor:pointer;position:relative;flex-wrap:wrap}
+.laneHead:hover{background:var(--hover)}
+.laneHead .caret{color:var(--fg3);font-size:9px;transition:transform .15s;flex:none}
+.laneHead.open .caret{transform:rotate(90deg)}
+.lh-name{min-width:150px;max-width:220px}
+.lh-name .pname{font-weight:650;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
+.lh-name small{display:block;font-size:11px;color:var(--fg3)}
+.rag{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
+.rag.green{background:var(--m-hit)} .rag.yellow{background:var(--m-at-risk)} .rag.red{background:var(--cat-prob)}
+.ring{width:20px;height:20px;border-radius:50%;position:relative;flex:none;cursor:default}
+.ring::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--surface)}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;z-index:1}
+.lh-mid{flex:1;min-width:240px;display:flex;flex-direction:column;gap:5px}
+.lh-right{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.chipline{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.track{display:flex;align-items:center;height:22px;position:relative}
+.track .rail{position:absolute;left:0;right:0;top:10.5px;height:1px;background:var(--border2)}
+.track .today{position:absolute;top:1px;bottom:1px;width:1.5px;background:var(--accent);opacity:.7}
+.track .dia{position:absolute;top:6px;transform:translateX(-50%);font-size:10px;cursor:default}
+.ms-planned{color:var(--m-planned)}.ms-at-risk{color:var(--m-at-risk)}.ms-hit{color:var(--m-hit)}.ms-missed{color:var(--m-missed)}
+.laneBody{display:none;border-top:1px solid var(--border);padding:8px 14px 12px;background:var(--bg)}
+.trow{display:grid;grid-template-columns:minmax(170px,240px) 110px minmax(150px,1fr) auto auto;gap:12px;align-items:center;
+  padding:8px 10px;border-radius:9px;cursor:pointer}
+.trow:hover{background:var(--hover)}
+.trow .tn{font-weight:550;font-size:12.5px;display:flex;align-items:center;gap:6px;min-width:0}
+.trow .tn .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .meta{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.stdot{width:8px;height:8px;border-radius:50%;flex:none}
+.gbar{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fg2)}
+.gbar .bar{flex:1;height:4px;border-radius:2px;background:var(--border);overflow:hidden;min-width:40px}
+.gbar .bar i{display:block;height:100%;background:var(--st-done)}
+.gbar .bar i.low{background:var(--cat-prog)}
+.decomp{font-size:10px;border-radius:5px;padding:0 6px;line-height:16px;font-weight:600;flex:none}
+.decomp.ok{color:var(--cat-res);background:color-mix(in srgb,var(--cat-res) 13%,transparent)}
+.decomp.miss{color:var(--fg3);background:var(--subtle);border:1px dashed var(--border2)}
+.sparkcup{display:flex;align-items:center;gap:6px}
+
+.riskcard{border:1px solid var(--border);border-left:3px solid var(--cat-prob);border-radius:10px;padding:10px 14px;margin-bottom:8px;background:var(--bg)}
+.riskcard .t{font-weight:600}
+.riskcard .m{font-size:11.5px;color:var(--fg2);margin-top:2px}
+.decision{border-left:3px solid var(--accent);padding:6px 12px;margin-top:8px;background:var(--bg);border-radius:0 8px 8px 0;font-size:12.5px}
+.gatemiss{color:var(--cat-prob);font-weight:600}
+details.more{margin-top:8px;font-size:12.5px;color:var(--fg2)}
+details.more summary{cursor:pointer;user-select:none}
+ul.plain{list-style:none} ul.plain li{padding:3px 0;font-size:12.5px}
+.muted{color:var(--fg2)} .f3{color:var(--fg3)}
+footer{margin-top:34px;color:var(--fg3);font-size:11.5px}
+body.brief .detail-only{display:none}
+
+/* ---------- Peek 侧滑 ---------- */
+.sheet{position:fixed;top:0;right:0;bottom:0;width:500px;max-width:94vw;background:var(--surface);
+  border-left:1px solid var(--border);box-shadow:var(--shadow-peek);transform:translateX(105%);
+  transition:transform .22s ease;z-index:40;display:flex;flex-direction:column}
+.sheet.on{transform:none}
+.sheet header{position:static;height:auto;border-bottom:1px solid var(--border);padding:12px 16px;background:var(--surface)}
+.sheet .body{flex:1;overflow:auto;padding:14px 16px 24px}
+.dimmer{position:fixed;inset:0;background:rgba(10,12,18,.32);opacity:0;pointer-events:none;transition:.2s;z-index:30}
+.dimmer.on{opacity:1;pointer-events:auto}
+.x{margin-left:auto;color:var(--fg3);font-size:15px;width:26px;height:26px;border-radius:7px}
+.x:hover{background:var(--subtle);color:var(--fg)}
+.goalcard{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg)}
+.goalcard .gn{font-weight:600;font-size:12.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.goalcard .gg{font-size:11px;color:var(--fg2);margin-top:3px}
+.rrow{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:start;padding:9px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--bg)}
+.rrow .t{font-weight:550} .rrow .m{font-size:11px;color:var(--fg2);margin-top:1px}
+.sev{font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px;text-align:center}
+.sev.crit{color:#fff;background:var(--cat-prob)}.sev.high{color:#fff;background:var(--cat-prog)}
+.sev.med{color:var(--fg);background:color-mix(in srgb,#d4b23f 45%,transparent)}.sev.low{color:var(--fg2);background:var(--subtle)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);
+  padding:6px 14px;border-radius:8px;font-size:12px;opacity:0;transition:.25s;pointer-events:none;z-index:70}
+.toast.on{opacity:1}
+@media print{header,#note,.btns,.toast,.sheet,.dimmer{display:none!important}main{padding:0;max-width:none}.laneBody{display:block!important}}
+</style>
+</head>
+<body class="brief">
+<header>
+  <div id="brand"><h1>RiskDeck</h1><span class="proto">REPORT</span></div>
+  <nav class="nav" id="nav">
+    <button data-t="sec-overview" class="on">概览</button>
+    <button data-t="sec-projects">泳道</button>
+    <button data-t="sec-risks">风险</button>
+    <button data-t="sec-assets">资产</button>
+    <button data-t="sec-ms">里程碑</button>
+    <button data-t="sec-plan">计划</button>
+  </nav>
+  <div class="hspace"></div>
+  <button class="ibtn" id="modeBtn">核查视图</button>
+  <button class="ibtn" id="precBtn">精度：整数</button>
+  <button class="ibtn" onclick="window.print()">打印 / PDF</button>
+  <button class="ibtn" id="themeBtn" title="切换主题">◐</button>
+</header>
+<div id="note">
+  <span><b>RiskDeck 自跟踪板</b> · 报告是投影，数字均出自事件流 · 达成度=子任务完成率推导（人工修正 ±20pp 限幅）· 风险四类：
+    <span class="cat-chip cat-prog"><i></i>进度</span>
+    <span class="cat-chip cat-res"><i></i>资源</span>
+    <span class="cat-chip cat-prob"><i></i>关键问题</span>
+    <span class="cat-chip cat-qual"><i></i>质量</span>
+  </span>
+  <span style="margin-left:auto;display:flex;align-items:center">阶段汇报窗口
+    <span class="wseg" id="winSeg">
+      <button data-win="7">7 天</button><button data-win="14">14 天</button>
+      <button data-win="30" class="on">30 天</button><button data-win="90">90 天</button>
+      <input id="winInput" type="number" min="1" max="365" title="自定义天数，回车生效" placeholder="自定义">
+    </span>
+    <span id="winLbl"></span>
+  </span>
+</div>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="sechead" id="sec-overview">结论区 · 需决策清单</div>
+  <section class="card" id="summary"></section>
+
+  <div class="sechead" id="sec-projects">项目泳道 <span class="f3" style="font-weight:400;letter-spacing:0">车道头=一眼分诊 · 点行下钻 Peek · 点车道头展开</span></div>
+  <div class="lanes" id="lanes"></div>
+  <details class="more detail-only" id="tblWrap"><summary>核查：项目汇总表 …</summary>
+    <section class="card" style="padding:6px 10px;margin-top:8px"><table id="projects"></table></section>
+  </details>
+
+  <div class="sechead" id="sec-risks">高危风险视图 <span class="f3" id="highSub" style="font-weight:400;letter-spacing:0"></span></div>
+  <div id="high"></div>
+  <div class="sechead">风险台账（存量 + 流量 · 随窗口重算）</div>
+  <section class="card" style="padding:6px 10px"><table id="risktable"></table></section>
+  <details class="more detail-only" id="allRisks"><summary>全部风险登记 …</summary><table id="riskall" style="margin-top:8px"></table></details>
+
+  <div class="sechead" id="sec-assets">资产产出 <span class="f3" style="font-weight:400;letter-spacing:0">收益仅在已投产且带基线时计入量化</span></div>
+  <section class="card" id="assets"></section>
+
+  <div class="sechead" id="sec-ms">里程碑</div>
+  <section class="card" id="milestones"></section>
+
+  <div class="sechead" id="sec-plan">下期计划（backlog · planned）</div>
+  <section class="card" id="plan"></section>
+
+  <div class="sechead detail-only" id="sec-events">附录：窗口事件流（<span id="evtCount">0</span> 条）</div>
+  <section class="card detail-only" id="events"></section>
+
+  <footer id="foot"></footer>
+</main>
+
+<div class="dimmer" id="dim"></div>
+<div class="sheet" id="sheet"><header><b id="sheetTitle"></b><button class="x" id="sheetX">✕</button></header><div class="body" id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const R = {"meta":{"title":"RiskDeck 自跟踪板","from":"2026-08-15","to":"2026-09-13","prevFrom":"2026-07-16","prevTo":"2026-08-14","generatedAt":"2026-09-13","winLen":30,"schemaVersion":2},"summary":{"exposure":41.2,"exposurePrev":41.2,"riskStock":{"schedule":0,"resource":1,"problem":1,"quality":1},"riskStockPrev":{"schedule":0,"resource":1,"problem":1,"quality":1},"riskFlow":{"opened":4,"resolved":2},"riskFlowPrev":{"opened":0,"resolved":0},"highCount":3,"decisions":3,"assets":{"total":3,"adopted":1,"reused":7,"quantified":1},"unverified":0},"projects":[{"id":"proj-rd","name":"RiskDeck","rag":"red","leaves":5,"doneWeight":0.7,"msCount":{"total":2,"hit":0,"missed":0,"atRisk":1,"planned":1},"msSlippedWin":0,"goalTotal":2,"goalDone":0,"goalDoneWin":0,"goalDonePrev":0,"unverified":0,"taskDone":3,"taskDoneWin":3,"riskStock":{"schedule":0,"resource":1,"problem":1,"quality":1},"riskFlow":{"opened":4,"resolved":2},"riskFlowPrev":{"opened":0,"resolved":0},"exposure":41.2,"assets":{"total":3,"adopted":1,"reused":7},"estimateHours":72,"todoLeaves":1,"wipLeaves":1,"lanes":[{"id":"g-report","name":"月报投影管线","kind":"module","goal":{"metric":"report 命令一条指令出月报","gate":"md+html 双产物，数字全出自事件流","due":"2026-09-30"},"hasChildren":true,"leavesTotal":3,"leavesDone":2,"pctDerived":72,"pctOverride":null,"pct":72,"pctBand":20,"estimateHours":48,"riskCount":1,"riskExposure":3.2,"milestones":[{"id":"ms-report","name":"月报管线可用","date":"2026-09-30","status":"at-risk","done":3,"total":3}],"nodeId":"g-report"},{"id":"g-mcp","name":"MCP server","kind":"module","goal":{"metric":"dsh 会话内直接读写看板","gate":"三大 agent 各跑通一次往返","due":"2026-11-30"},"hasChildren":true,"leavesTotal":1,"leavesDone":1,"pctDerived":100,"pctOverride":85,"pct":85,"pctBand":20,"estimateHours":0,"riskCount":0,"riskExposure":0,"milestones":[],"nodeId":"g-mcp"},{"id":"g-timesheet","name":"工时源适配器","kind":"module","goal":null,"hasChildren":true,"leavesTotal":1,"leavesDone":0,"pctDerived":0,"pctOverride":null,"pct":0,"pctBand":20,"estimateHours":24,"riskCount":2,"riskExposure":38,"milestones":[{"id":"ms-timesheet","name":"工时源自动入库","date":"2026-10-15","status":"planned","done":0,"total":1}],"nodeId":"g-timesheet"}],"rings":[{"id":"g-report","name":"月报投影管线","gate":"md+html 双产物，数字全出自事件流","due":"2026-09-30","pct":72,"pctDerived":72,"overridden":false},{"id":"g-mcp","name":"MCP server","gate":"三大 agent 各跑通一次往返","due":"2026-11-30","pct":85,"pctDerived":100,"overridden":true}],"node2lane":{"g-report":"g-report","t-schema":"g-report","t-report-cmd":"g-report","t-html":"g-report","g-mcp":"g-mcp","t-decomp":"g-mcp","g-timesheet":"g-timesheet","t-api":"g-timesheet"}}],"risks":[{"id":"r-001","title":"工时系统 API 鉴权方式未定","category":"resource","p":0.6,"i":30,"status":"open","node":"g-timesheet","review":"2026-09-05","mitigation":"已提工单，等待平台组回复","openedAt":"2026-08-25","exposure":18,"labels":{"category":"资源","status":"未决"}},{"id":"r-002","title":"跨会话语义映射规则复杂，业界无现成方案","category":"problem","p":0.5,"i":40,"status":"mitigating","owner":"宿主","node":"g-timesheet","review":"2026-09-20","mitigation":"先做导出文件通道兜底，API 后置","openedAt":"2026-09-01","exposure":20,"labels":{"category":"关键问题","status":"缓解中"}},{"id":"r-003","title":"HTML 模板打印样式可能超出 A4","category":"quality","p":0.4,"i":8,"status":"open","node":"t-html","openedAt":"2026-09-10","exposure":3.2,"labels":{"category":"质量","status":"未决"}},{"id":"r-004","title":"月报截止前手忙脚乱赶工","category":"schedule","p":0.3,"i":15,"status":"resolved","owner":"宿主","node":"g-report","note":"report 命令上线，赶工风险解除","openedAt":"2026-08-16","exposure":4.5,"labels":{"category":"进度","status":"已解决"}}],"highRisks":[{"id":"r-002","title":"跨会话语义映射规则复杂，业界无现成方案","category":"problem","p":0.5,"i":40,"status":"mitigating","owner":"宿主","node":"g-timesheet","review":"2026-09-20","mitigation":"先做导出文件通道兜底，API 后置","openedAt":"2026-09-01","exposure":20,"triggers":["暴露值≥20","关键问题类"],"lastEvent":"2026-09-01"},{"id":"r-001","title":"工时系统 API 鉴权方式未定","category":"resource","p":0.6,"i":30,"status":"open","node":"g-timesheet","review":"2026-09-05","mitigation":"已提工单，等待平台组回复","openedAt":"2026-08-25","exposure":18,"triggers":["复审逾期（2026-09-05）","无责任人","已 19 天无缓解进展"],"lastEvent":"2026-08-25"},{"id":"r-003","title":"HTML 模板打印样式可能超出 A4","category":"quality","p":0.4,"i":8,"status":"open","node":"t-html","openedAt":"2026-09-10","exposure":3.2,"triggers":["无责任人"],"lastEvent":"2026-09-10"}],"assets":[{"id":"as-001","title":"概念 v2 术语与四类风险约定","type":"process","status":"adopted","scope":"团队","node":"proj-rd","metric":"汇报口径对齐耗时","baseline":"每次会议 30 分钟扯皮","value":"降至 5 分钟","unit":"分钟/次","evidence":"docs/CONCEPTS.md","reused":7,"createdAt":"2026-09-12","labels":{"type":"流程规范","status":"已投产"}},{"id":"as-002","title":"riskdeck report 月报投影管线","type":"tool","status":"deposited","node":"g-report","createdAt":"2026-09-12","labels":{"type":"工具","status":"已沉淀"}},{"id":"as-003","title":"加法式 schema 迁移方法","type":"knowledge","status":"deposited","note":"v1 看板零破坏升级的可复用做法","createdAt":"2026-09-12","labels":{"type":"经验","status":"已沉淀"}}],"milestones":[{"id":"ms-report","node":"g-report","name":"月报管线可用","date":"2026-09-30","status":"at-risk","criteria":["report 出 md","HTML 可交互"]},{"id":"ms-timesheet","node":"g-timesheet","name":"工时源自动入库","date":"2026-10-15","status":"planned","criteria":["API 拉取","映射表覆盖 90%"]}],"backlog":[{"title":"工时导出文件通道（watcher 兜底）","status":"planned","node":"g-timesheet","date":"2026-09-12"},{"title":"report 接入容量对账","status":"planned","node":"g-report","date":"2026-09-12"},{"title":"MCP server 骨架","status":"planned","node":"g-mcp","date":"2026-09-12"}],"decisions":[{"what":"复审风险「跨会话语义映射规则复杂，业界无现成方案」","why":"暴露值≥20；关键问题类","risk":"r-002","due":"2026-09-20"},{"what":"指派责任人并复审风险「工时系统 API 鉴权方式未定」","why":"复审逾期（2026-09-05）；无责任人；已 19 天无缓解进展","risk":"r-001","due":"2026-09-05"},{"what":"指派责任人并复审风险「HTML 模板打印样式可能超出 A4」","why":"无责任人","risk":"r-003","due":null}],"weekly":{"buckets":[{"start":"2026-08-15","end":"2026-08-20","done":1,"cum":1},{"start":"2026-08-21","end":"2026-08-26","done":0,"cum":1},{"start":"2026-08-27","end":"2026-09-01","done":0,"cum":1},{"start":"2026-09-02","end":"2026-09-07","done":1,"cum":2},{"start":"2026-09-08","end":"2026-09-13","done":1,"cum":3}],"totalLeaves":5},"windowEvents":[{"id":"d5934a7f983a","ts":"2026-09-12T21:05:26.308Z","date":"2026-09-12","type":"note","node":"proj-rd","note":"新建 project「RiskDeck」（顶层项目）","source":"cli"},{"id":"ce40c85230e4","ts":"2026-09-12T21:05:26.343Z","date":"2026-09-12","type":"note","node":"g-report","note":"新建 module「月报投影管线」（挂在 proj-rd 下）","source":"cli"},{"id":"94ad11f46f7e","ts":"2026-09-12T21:05:26.375Z","date":"2026-09-12","type":"note","node":"g-mcp","note":"新建 module「MCP server」（挂在 proj-rd 下）","source":"cli"},{"id":"9a09e151fd6b","ts":"2026-09-12T21:05:26.410Z","date":"2026-09-12","type":"note","node":"g-timesheet","note":"新建 module「工时源适配器」（挂在 proj-rd 下）","source":"cli"},{"id":"c65ce818def9","ts":"2026-09-12T21:05:26.444Z","date":"2026-09-12","type":"note","node":"t-schema","note":"新建 feature「schema v2 加法迁移」（挂在 g-report 下）","source":"cli"},{"id":"9ee66acd71e3","ts":"2026-09-12T21:05:26.477Z","date":"2026-09-12","type":"note","node":"t-report-cmd","note":"新建 feature「report 投影命令」（挂在 g-report 下）","source":"cli"},{"id":"bf08f1bdd080","ts":"2026-09-12T21:05:26.509Z","date":"2026-09-12","type":"note","node":"t-html","note":"新建 feature「HTML 详略控件」（挂在 g-report 下）","source":"cli"},{"id":"4dfb8cfbd227","ts":"2026-09-12T21:05:26.540Z","date":"2026-09-12","type":"note","node":"t-decomp","note":"新建 feature「MCP 目标拆解任务」（挂在 g-mcp 下）","source":"cli"},{"id":"425227d88471","ts":"2026-09-12T21:05:26.572Z","date":"2026-09-12","type":"note","node":"t-api","note":"新建 feature「工时 API 拉取」（挂在 g-timesheet 下）","source":"cli"},{"id":"f18c4fcdc8e3","ts":"2026-09-12T21:05:26.603Z","date":"2026-09-12","type":"gate","node":"g-report","note":"目标契约更新：指标 report 命令一条指令出月报，门禁 md+html 双产物，数字全出自事件流，契约 2026-09-30，FTE 预算 3","source":"cli"},{"id":"8cb42835ab54","ts":"2026-09-12T21:05:26.634Z","date":"2026-09-12","type":"gate","node":"g-mcp","note":"目标契约更新：指标 dsh 会话内直接读写看板，门禁 三大 agent 各跑通一次往返，契约 2026-11-30，FTE 预算 5","source":"cli"},{"id":"70bed2d1cd34","ts":"2026-09-12T21:05:26.668Z","date":"2026-09-12","type":"gate","node":"t-schema","note":"目标契约更新：估算 12h","source":"cli"},{"id":"203382a06544","ts":"2026-09-12T21:05:26.700Z","date":"2026-09-12","type":"gate","node":"t-report-cmd","note":"目标契约更新：估算 16h","source":"cli"},{"id":"183839d8e1f8","ts":"2026-09-12T21:05:26.744Z","date":"2026-09-12","type":"gate","node":"t-html","note":"目标契约更新：估算 20h","source":"cli"},{"id":"e20808ca677b","ts":"2026-09-12T21:05:26.776Z","date":"2026-09-12","type":"gate","node":"t-api","note":"目标契约更新：估算 24h","source":"cli"},{"id":"268e32b38f4e","ts":"2026-09-12T21:05:26.810Z","date":"2026-08-20","type":"impl","node":"t-schema","to":"verified","note":"枚举/校验/登记 upsert 全部落地，回归通过","ref":"commit a1b2c3","source":"cli"},{"id":"c6ee675b43c6","ts":"2026-09-12T21:05:26.841Z","date":"2026-09-10","type":"impl","node":"t-report-cmd","to":"done","note":"report 子命令 + markdown 投影","ref":"commit d4e5f6","source":"cli"},{"id":"71d3ee537a3f","ts":"2026-09-12T21:05:26.872Z","date":"2026-09-12","type":"impl","node":"t-html","to":"wip","note":"模板完成 80%，打印样式待调","source":"cli"},{"id":"11db3df2ae16","ts":"2026-09-12T21:05:26.905Z","date":"2026-09-05","type":"impl","node":"t-decomp","to":"done","note":"MCP 拆解完成：3 个二级任务，可并发","ref":"docs/mcp-decomp.md","source":"cli"},{"id":"d6f486cb2bae","ts":"2026-09-12T21:05:26.936Z","date":"2026-09-12","type":"milestone","node":"g-report","note":"新增里程碑「月报管线可用」目标 2026-09-30","source":"cli"},{"id":"144780379c5b","ts":"2026-09-12T21:05:26.968Z","date":"2026-09-12","type":"milestone","node":"g-timesheet","note":"新增里程碑「工时源自动入库」目标 2026-10-15","source":"cli"},{"id":"19cbcfa0b979","ts":"2026-09-12T21:05:27.002Z","date":"2026-08-25","type":"risk","node":"r-001","to":"open","note":"登记风险「工时系统 API 鉴权方式未定」（resource，p×i=18.0）","source":"cli"},{"id":"815bae46af30","ts":"2026-09-12T21:05:27.034Z","date":"2026-09-01","type":"risk","node":"r-002","to":"mitigating","note":"登记风险「跨会话语义映射规则复杂，业界无现成方案」（problem，p×i=20.0）","source":"cli"},{"id":"ffc50ec133c2","ts":"2026-09-12T21:05:27.065Z","date":"2026-09-10","type":"risk","node":"r-003","to":"open","note":"登记风险「HTML 模板打印样式可能超出 A4」（quality，p×i=3.2）","source":"cli"},{"id":"2f75b9bec67f","ts":"2026-09-12T21:05:27.097Z","date":"2026-08-16","type":"risk","node":"r-004","to":"open","note":"登记风险「月报截止前手忙脚乱赶工」（schedule，p×i=4.5）","source":"cli"},{"id":"c65e3ae03a1f","ts":"2026-09-12T21:05:27.130Z","date":"2026-09-11","type":"risk","node":"r-004","to":"resolved","note":"report 命令上线，赶工风险解除","source":"cli"},{"id":"9d186e273246","ts":"2026-09-12T21:05:27.163Z","date":"2026-08-15","type":"asset","node":"as-001","to":"adopted","note":"沉淀资产「概念 v2 术语与四类风险约定」（process，指标 汇报口径对齐耗时）","ref":"docs/CONCEPTS.md","source":"cli"},{"id":"e8e05533cb24","ts":"2026-09-12T21:05:27.197Z","date":"2026-09-10","type":"asset","node":"as-002","to":"deposited","note":"沉淀资产「riskdeck report 月报投影管线」（tool）","source":"cli"},{"id":"6e0ccf89bb25","ts":"2026-09-12T21:05:27.228Z","date":"2026-09-12","type":"asset","node":"as-003","to":"deposited","note":"v1 看板零破坏升级的可复用做法","source":"cli"},{"id":"6e2d37e0b7e7","ts":"2026-09-12T21:06:16.932Z","date":"2026-09-11","type":"risk","node":"r-004","to":"resolved","note":"report 命令上线，赶工风险解除","source":"cli"},{"id":"e79bdfef7157","ts":"2026-09-13T08:14:56.972Z","date":"2026-09-13","type":"gate","node":"t-report-cmd","note":"目标契约更新：达成度人工修正 85%（推导 100%，生效 85%，限 ±20pp）","source":"cli"},{"id":"153907a4a387","ts":"2026-09-13T08:15:51.930Z","date":"2026-09-13","type":"gate","node":"g-mcp","note":"目标契约更新：达成度人工修正 85%（推导 100%，生效 85%，限 ±20pp）","source":"cli"},{"id":"5493069194c4","ts":"2026-09-13T08:16:18.682Z","date":"2026-09-13","type":"gate","node":"t-html","note":"目标契约更新：达成度人工修正 10%（推导 50%，生效 30%，限 ±20pp）","source":"cli"}],"events":[{"id":"d5934a7f983a","ts":"2026-09-12T21:05:26.308Z","date":"2026-09-12","type":"note","node":"proj-rd","note":"新建 project「RiskDeck」（顶层项目）","source":"cli"},{"id":"ce40c85230e4","ts":"2026-09-12T21:05:26.343Z","date":"2026-09-12","type":"note","node":"g-report","note":"新建 module「月报投影管线」（挂在 proj-rd 下）","source":"cli"},{"id":"94ad11f46f7e","ts":"2026-09-12T21:05:26.375Z","date":"2026-09-12","type":"note","node":"g-mcp","note":"新建 module「MCP server」（挂在 proj-rd 下）","source":"cli"},{"id":"9a09e151fd6b","ts":"2026-09-12T21:05:26.410Z","date":"2026-09-12","type":"note","node":"g-timesheet","note":"新建 module「工时源适配器」（挂在 proj-rd 下）","source":"cli"},{"id":"c65ce818def9","ts":"2026-09-12T21:05:26.444Z","date":"2026-09-12","type":"note","node":"t-schema","note":"新建 feature「schema v2 加法迁移」（挂在 g-report 下）","source":"cli"},{"id":"9ee66acd71e3","ts":"2026-09-12T21:05:26.477Z","date":"2026-09-12","type":"note","node":"t-report-cmd","note":"新建 feature「report 投影命令」（挂在 g-report 下）","source":"cli"},{"id":"bf08f1bdd080","ts":"2026-09-12T21:05:26.509Z","date":"2026-09-12","type":"note","node":"t-html","note":"新建 feature「HTML 详略控件」（挂在 g-report 下）","source":"cli"},{"id":"4dfb8cfbd227","ts":"2026-09-12T21:05:26.540Z","date":"2026-09-12","type":"note","node":"t-decomp","note":"新建 feature「MCP 目标拆解任务」（挂在 g-mcp 下）","source":"cli"},{"id":"425227d88471","ts":"2026-09-12T21:05:26.572Z","date":"2026-09-12","type":"note","node":"t-api","note":"新建 feature「工时 API 拉取」（挂在 g-timesheet 下）","source":"cli"},{"id":"f18c4fcdc8e3","ts":"2026-09-12T21:05:26.603Z","date":"2026-09-12","type":"gate","node":"g-report","note":"目标契约更新：指标 report 命令一条指令出月报，门禁 md+html 双产物，数字全出自事件流，契约 2026-09-30，FTE 预算 3","source":"cli"},{"id":"8cb42835ab54","ts":"2026-09-12T21:05:26.634Z","date":"2026-09-12","type":"gate","node":"g-mcp","note":"目标契约更新：指标 dsh 会话内直接读写看板，门禁 三大 agent 各跑通一次往返，契约 2026-11-30，FTE 预算 5","source":"cli"},{"id":"70bed2d1cd34","ts":"2026-09-12T21:05:26.668Z","date":"2026-09-12","type":"gate","node":"t-schema","note":"目标契约更新：估算 12h","source":"cli"},{"id":"203382a06544","ts":"2026-09-12T21:05:26.700Z","date":"2026-09-12","type":"gate","node":"t-report-cmd","note":"目标契约更新：估算 16h","source":"cli"},{"id":"183839d8e1f8","ts":"2026-09-12T21:05:26.744Z","date":"2026-09-12","type":"gate","node":"t-html","note":"目标契约更新：估算 20h","source":"cli"},{"id":"e20808ca677b","ts":"2026-09-12T21:05:26.776Z","date":"2026-09-12","type":"gate","node":"t-api","note":"目标契约更新：估算 24h","source":"cli"},{"id":"268e32b38f4e","ts":"2026-09-12T21:05:26.810Z","date":"2026-08-20","type":"impl","node":"t-schema","to":"verified","note":"枚举/校验/登记 upsert 全部落地，回归通过","ref":"commit a1b2c3","source":"cli"},{"id":"c6ee675b43c6","ts":"2026-09-12T21:05:26.841Z","date":"2026-09-10","type":"impl","node":"t-report-cmd","to":"done","note":"report 子命令 + markdown 投影","ref":"commit d4e5f6","source":"cli"},{"id":"71d3ee537a3f","ts":"2026-09-12T21:05:26.872Z","date":"2026-09-12","type":"impl","node":"t-html","to":"wip","note":"模板完成 80%，打印样式待调","source":"cli"},{"id":"11db3df2ae16","ts":"2026-09-12T21:05:26.905Z","date":"2026-09-05","type":"impl","node":"t-decomp","to":"done","note":"MCP 拆解完成：3 个二级任务，可并发","ref":"docs/mcp-decomp.md","source":"cli"},{"id":"d6f486cb2bae","ts":"2026-09-12T21:05:26.936Z","date":"2026-09-12","type":"milestone","node":"g-report","note":"新增里程碑「月报管线可用」目标 2026-09-30","source":"cli"},{"id":"144780379c5b","ts":"2026-09-12T21:05:26.968Z","date":"2026-09-12","type":"milestone","node":"g-timesheet","note":"新增里程碑「工时源自动入库」目标 2026-10-15","source":"cli"},{"id":"19cbcfa0b979","ts":"2026-09-12T21:05:27.002Z","date":"2026-08-25","type":"risk","node":"r-001","to":"open","note":"登记风险「工时系统 API 鉴权方式未定」（resource，p×i=18.0）","source":"cli"},{"id":"815bae46af30","ts":"2026-09-12T21:05:27.034Z","date":"2026-09-01","type":"risk","node":"r-002","to":"mitigating","note":"登记风险「跨会话语义映射规则复杂，业界无现成方案」（problem，p×i=20.0）","source":"cli"},{"id":"ffc50ec133c2","ts":"2026-09-12T21:05:27.065Z","date":"2026-09-10","type":"risk","node":"r-003","to":"open","note":"登记风险「HTML 模板打印样式可能超出 A4」（quality，p×i=3.2）","source":"cli"},{"id":"2f75b9bec67f","ts":"2026-09-12T21:05:27.097Z","date":"2026-08-16","type":"risk","node":"r-004","to":"open","note":"登记风险「月报截止前手忙脚乱赶工」（schedule，p×i=4.5）","source":"cli"},{"id":"c65e3ae03a1f","ts":"2026-09-12T21:05:27.130Z","date":"2026-09-11","type":"risk","node":"r-004","to":"resolved","note":"report 命令上线，赶工风险解除","source":"cli"},{"id":"9d186e273246","ts":"2026-09-12T21:05:27.163Z","date":"2026-08-15","type":"asset","node":"as-001","to":"adopted","note":"沉淀资产「概念 v2 术语与四类风险约定」（process，指标 汇报口径对齐耗时）","ref":"docs/CONCEPTS.md","source":"cli"},{"id":"e8e05533cb24","ts":"2026-09-12T21:05:27.197Z","date":"2026-09-10","type":"asset","node":"as-002","to":"deposited","note":"沉淀资产「riskdeck report 月报投影管线」（tool）","source":"cli"},{"id":"6e0ccf89bb25","ts":"2026-09-12T21:05:27.228Z","date":"2026-09-12","type":"asset","node":"as-003","to":"deposited","note":"v1 看板零破坏升级的可复用做法","source":"cli"},{"id":"6e2d37e0b7e7","ts":"2026-09-12T21:06:16.932Z","date":"2026-09-11","type":"risk","node":"r-004","to":"resolved","note":"report 命令上线，赶工风险解除","source":"cli"},{"id":"e79bdfef7157","ts":"2026-09-13T08:14:56.972Z","date":"2026-09-13","type":"gate","node":"t-report-cmd","note":"目标契约更新：达成度人工修正 85%（推导 100%，生效 85%，限 ±20pp）","source":"cli"},{"id":"153907a4a387","ts":"2026-09-13T08:15:51.930Z","date":"2026-09-13","type":"gate","node":"g-mcp","note":"目标契约更新：达成度人工修正 85%（推导 100%，生效 85%，限 ±20pp）","source":"cli"},{"id":"5493069194c4","ts":"2026-09-13T08:16:18.682Z","date":"2026-09-13","type":"gate","node":"t-html","note":"目标契约更新：达成度人工修正 10%（推导 50%，生效 30%，限 ±20pp）","source":"cli"}],"subtree":{"proj-rd":["proj-rd","g-report","t-schema","t-report-cmd","t-html","g-mcp","t-decomp","g-timesheet","t-api"]},"goalIds":["g-report","g-mcp"],"leafIds":["t-schema","t-report-cmd","t-html","t-decomp","t-api"],"config":{"highExposure":20,"staleDays":14}};
+
+/* ---------- 基础 ---------- */
+const CAT = { schedule:['进度','prog'], resource:['资源','res'], problem:['关键问题','prob'], quality:['质量','qual'] };
+const RST = { open:'未决', mitigating:'缓解中', resolved:'已解决', accepted:'已接受' };
+const AST = { proposed:'提出', deposited:'已沉淀', adopted:'已投产', retired:'退役' };
+const ATY = { process:'流程规范', tool:'工具', knowledge:'经验', template:'模板', data:'数据' };
+const MS_TAG = { planned:['','◆'], 'at-risk':['warn','◆预警'], hit:['good','◆达成'], missed:['bad','◆错过'] };
+const MS_COLOR = { hit:'var(--m-hit)', missed:'var(--cat-prob)', 'at-risk':'var(--m-at-risk)', planned:'var(--m-planned)' };
+const DONE = new Set(['done','verified']);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const D = s => new Date(s + 'T00:00:00Z');
+const dayMs = 86400000;
+const addDays = (s, n) => new Date(D(s).getTime() + n * dayMs).toISOString().slice(0, 10);
+let precise = false;
+const fmt = n => precise ? (Math.round(n * 10) / 10).toFixed(1) : String(Math.round(n));
+const TOP = 3;
+const NODE2PROJ = {};
+for (const [pid, ids] of Object.entries(R.subtree || {})) ids.forEach(id => NODE2PROJ[id] = pid);
+const GOALS = new Set(R.goalIds || []), LEAVES = new Set(R.leafIds || []);
+const riskById = new Map(R.risks.map(r => [r.id, r]));
+const riskCat = id => (riskById.get(id) || {}).category;
+const laneByNode = {};
+R.projects.forEach(p => { for (const [node, laneId] of Object.entries(p.node2lane || {})) laneByNode[node] = { proj: p.id, lane: laneId }; });
+const laneOfRisk = e => { if (!e.node) return null; const rn = riskById.get(e.node)?.node || e.node; return laneByNode[rn] || null; };
+const $ = id => document.getElementById(id);
+
+/* ---------- 主题 ---------- */
+const storedTheme = localStorage.getItem('rd.reportTheme');
+let dark = storedTheme ? storedTheme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+const applyTheme = () => document.documentElement.classList.toggle('dark', dark);
+applyTheme();
+$('themeBtn').onclick = () => { dark = !dark; localStorage.setItem('rd.reportTheme', dark ? 'dark' : 'light'); applyTheme(); };
+
+/* ---------- 窗口重算（报告 = 查询） ---------- */
+let state = { days: R.meta.winLen };
+function flows(evs) {
+  const f = { schedule:0, resource:0, problem:0, quality:0 }, r = { schedule:0, resource:0, problem:0, quality:0 };
+  let opened = 0, closed = 0, moves = 0, slips = 0, gates = 0, assets = 0;
+  const st = {};
+  const sorted = evs.slice().sort((a, b) => a.date < b.date ? -1 : 1);
+  for (const e of sorted) {
+    if (e.type === 'risk') {
+      const cat = riskCat(e.node); const prev = st[e.node];
+      if ((e.to === 'open' || e.to === 'mitigating') && (!prev || prev === 'resolved' || prev === 'accepted')) { if (cat) f[cat]++; opened++; }
+      if (e.to === 'resolved' || e.to === 'accepted') { if (cat) r[cat]++; closed++; }
+      if (e.to) st[e.node] = e.to;
+    }
+    else if (e.type === 'impl') moves++;
+    else if (e.type === 'milestone' && (e.to === 'at-risk' || e.to === 'missed')) slips++;
+    else if (e.type === 'gate') gates++;
+    else if (e.type === 'asset') assets++;
+  }
+  return { f, r, opened, closed, moves, slips, gates, assets };
+}
+function stockAsOf(end) {
+  const st = {};
+  R.risks.forEach(x => st[x.id] = { ...x });
+  R.events.filter(e => e.type === 'risk' && e.date > end && e.node)
+    .sort((a, b) => a.date < b.date ? 1 : -1)
+    .forEach(e => { const s = st[e.node]; if (s && e.from) s.status = e.from; });
+  const stock = { schedule:0, resource:0, problem:0, quality:0 };
+  let exposure = 0, high = 0, crit = 0;
+  for (const s of Object.values(st)) {
+    if (s.status !== 'open' && s.status !== 'mitigating') continue;
+    const ex = (s.p || 0) * (s.i || 0);
+    stock[s.category]++; exposure += ex;
+    if (ex >= R.config.highExposure) { high++; crit++; }
+    else if (s.category === 'problem' || !s.owner) high++;
+  }
+  return { stock, exposure, high, crit };
+}
+function windowData(days) {
+  const to = R.meta.to;
+  const from = addDays(to, -(days - 1));
+  const prevTo = addDays(from, -1);
+  const prevFrom = addDays(prevTo, -(days - 1));
+  const evs = R.events.filter(e => e.date >= from && e.date <= to);
+  const prev = R.events.filter(e => e.date >= prevFrom && e.date <= prevTo);
+  const projOf = e => { if (!e.node) return null; const rn = riskById.get(e.node)?.node || e.node; return NODE2PROJ[rn] || null; };
+  const perProj = {};
+  R.projects.forEach(p => perProj[p.id] = { evs: [], flows: null, burn: [] });
+  evs.forEach(e => { const p = projOf(e); if (p && perProj[p]) perProj[p].evs.push(e); });
+  const taskWin = evs.filter(e => e.type === 'impl' && DONE.has(e.to) && LEAVES.has(e.node)).length;
+  const nb = Math.min(6, Math.max(1, Math.ceil(days / 7)));
+  for (const pid of Object.keys(perProj)) {
+    const pe = perProj[pid].evs;
+    perProj[pid].flows = flows(pe);
+    const buckets = [];
+    for (let i = 0; i < nb; i++) buckets.push({ start: addDays(from, Math.floor(i * days / nb)), end: i === nb - 1 ? to : addDays(from, Math.floor((i + 1) * days / nb) - 1), done: 0 });
+    pe.filter(e => e.type === 'impl' && DONE.has(e.to)).forEach(e => { const b = buckets.find(x => e.date >= x.start && e.date <= x.end); if (b) b.done++; });
+    let acc = 0; buckets.forEach(b => { acc += b.done; b.cum = acc; });
+    perProj[pid].burn = buckets;
+  }
+  return { from, to, evs, perProj, taskWin, flows: flows(evs), flowsPrev: flows(prev), stock: stockAsOf(to) };
+}
+
+/* ---------- 泳道渲染 ---------- */
+function ringHtml(g) {
+  const col = g.pct >= 80 ? 'var(--m-hit)' : g.pct >= 45 ? 'var(--m-at-risk)' : 'var(--cat-prob)';
+  const title = `${g.name}${g.overridden ? '（含人工修正）' : ''} · 达成 ${g.pct}%（推导 ${g.pctDerived}%）· 门禁 ${g.gate || '未设'} · 契约 ${g.due || '—'}`;
+  return `<span class="ring" style="background:conic-gradient(${col} ${g.pct * 3.6}deg, var(--border) 0)" title="${esc(title)}"><b style="color:${col}">${g.pct}</b></span>`;
+}
+function msTrackHtml(msList, w) {
+  if (!msList.length) return `<div class="track"><div class="rail"></div></div>`;
+  const dates = msList.map(m => m.date).concat([w.from, w.to]);
+  const lo = dates.reduce((a, b) => a < b ? a : b), hi = dates.reduce((a, b) => a > b ? a : b);
+  const pos = d => Math.max(0, Math.min(100, (D(d) - D(lo)) / Math.max(1, D(hi) - D(lo)) * 100));
+  return `<div class="track"><div class="rail"></div>
+    <div class="today" style="left:${pos(w.to)}%"></div>
+    ${msList.map(m => `<span class="dia ms-${m.status}" title="${esc(m.name)} · 任务 ${m.done}/${m.total} · 契约 ${m.date}" style="left:${pos(m.date)}%">◆</span>`).join('')}</div>`;
+}
+function laneHeadHtml(p, lane, w) {
+  const pf = w.perProj[p.id];
+  const highN = R.highRisks.filter(h => { const m = laneOfRisk(h); return m && m.proj === p.id && m.lane === lane.id; }).length;
+  const burnMax = Math.max(...pf.burn.map(b => b.cum), 1);
+  const spark = `<svg class="spark" width="84" height="22" viewBox="0 0 84 22"><polyline fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" points="${
+    pf.burn.map((b, i) => `${(i * 84 / Math.max(1, pf.burn.length - 1)).toFixed(1)},${(20 - b.cum / burnMax * 18).toFixed(1)}`).join(' ')}"/></svg>`;
+  const catN = Object.entries(p.riskStock).filter(([, v]) => v > 0);
+  const lev = pf.evs.filter(e => { const m = laneOfRisk(e); return m && m.lane === lane.id; });
+  const fl = flows(lev);
+  const slipped = (lane.goal?.due && lane.goal.due <= w.to && lane.pct < 100) ? 1 : 0;
+  return `<div class="laneHead" data-lane="${p.id}|${lane.id}">
+    <span class="caret">▶</span>
+    <div class="lh-name">
+      <div class="pname"><span class="rag ${p.rag}"></span>${esc(lane.name)}</div>
+      <small>${lane.id} · 子任务 ${lane.leavesDone}/${lane.leavesTotal} · 契约滑动 ${slipped} 项</small>
+    </div>
+    <div style="display:flex;gap:5px;align-items:center" title="目标达成度（子任务推导 + 人工 ±20pp 限幅）">${p.rings.map(ringHtml).join('')}</div>
+    <div class="lh-mid">
+      ${msTrackHtml(lane.milestones, w)}
+      <div class="chipline" style="justify-content:flex-start">${lane.milestones.map(m => { const [cls, tag] = MS_TAG[m.status] || ['', '']; return `<span class="chip ${cls}" title="${esc(m.name)} · 成员任务 ${m.done}/${m.total} · 契约 ${m.date}">${esc(m.name)} ${m.done}/${m.total}${tag ? ' ' + tag : ''}</span>`; }).join('') || '<span class="chip">无里程碑</span>'}</div>
+    </div>
+    <div class="lh-right">
+      <div class="chipline">${catN.map(([k, v]) => `<span class="cat-chip cat-${CAT[k][1]}${k === 'problem' ? ' hot' : ''}"><i></i>${CAT[k][0]} ${v}</span>`).join('')}
+        <span class="chip" title="该泳道关联风险 p×i 暴露合计" style="${lane.riskExposure >= R.config.highExposure ? 'color:var(--cat-prob);font-weight:700' : ''}">暴露 ${fmt(lane.riskExposure)}</span>
+        ${highN ? `<span class="chip bad" title="高危触发数">⚡${highN}</span>` : ''}</div>
+      <div class="chipline">
+        <span class="chip ${fl.opened > fl.closed ? 'warn' : (fl.opened || fl.closed) ? 'acc' : ''}" title="窗口内登记/解除">风险 +${fl.opened} −${fl.closed}</span>
+        ${fl.moves ? `<span class="chip acc" title="任务状态迁移">迁移 ${fl.moves}</span>` : ''}
+        ${fl.slips || slipped ? `<span class="chip warn" title="里程碑滑动/契约已过未达成">滑动 ${fl.slips + slipped}</span>` : ''}
+        ${fl.gates ? `<span class="chip acc" title="契约/门禁更新">契约 ${fl.gates}</span>` : ''}
+        ${fl.assets ? `<span class="chip good" title="资产事件">资产 ${fl.assets}</span>` : ''}
+      </div>
+    </div>
+    <span class="sparkcup" title="任务达成 burn-up（窗口分桶累计）">${spark}<span class="f3" style="font-size:10px">burn-up</span></span>
+  </div>`;
+}
+function laneRowHtml(p, lane) {
+  const st = lane.leavesTotal && lane.leavesDone >= lane.leavesTotal ? ['done', 'done'] : (lane.leavesDone > 0 || lane.pct > 0 ? ['wip', 'wip'] : ['todo', 'todo']);
+  const decomp = lane.hasChildren
+    ? `<span class="decomp ok" title="已产出拆解（首个子任务=拆解任务约定）">已拆解 ${lane.leavesTotal} 叶</span>`
+    : (lane.goal ? `<span class="decomp miss" title="尚无拆解任务——拆解质量决定目标实现上限">⚠ 未拆解</span>` : '');
+  const over = lane.pctOverride != null ? ` title="推导 ${lane.pctDerived}% → 人工 ${lane.pctOverride}% → 生效 ${lane.pct}%（限 ±${lane.pctBand}pp，修正已留事件审计）"` : '';
+  const overTag = lane.pctOverride != null ? `<span class="chip warn" title="人工修正已限幅并留痕">人工±</span>` : '';
+  return `<div class="trow" data-peek="${p.id}|${lane.id}">
+    <div class="tn"><span class="stdot" style="background:var(--st-${st[0]})" title="${st[1]}"></span><span class="nm">${esc(lane.name)}</span>${decomp}</div>
+    <div class="gbar"${over}><span class="num">${lane.pct}%</span><span class="bar"><i class="${lane.pct < 60 && lane.pct > 0 ? 'low' : ''}" style="width:${lane.pct}%"></i></span></div>
+    <div class="chipline" style="justify-content:flex-start">
+      <span class="chip" title="FTE 契约完成日">契约 ${lane.goal?.due ? lane.goal.due.slice(5) : '—'}</span>
+      <span class="chip" title="预测完成日缺失——缺失本身是进度风险输入；工时源接入后由 burn-rate 推导">⏱ 预测 —</span>
+      <span class="chip" title="子任务进度（达成度的唯一事实来源）">子任务 ${lane.leavesDone}/${lane.leavesTotal || '—'}</span>${overTag}
+    </div>
+    <div class="meta">${lane.riskCount ? `<span class="chip warn">⚠ ${lane.riskCount}</span>` : '<span class="chip good">✓</span>'}</div>
+    <div></div>
+  </div>`;
+}
+function renderLanes(w) {
+  $('lanes').innerHTML = R.projects.map(p => `
+    <div class="lane">${p.lanes.length ? p.lanes.map(lane => `
+      <div style="border-bottom:1px solid var(--border)">
+        ${laneHeadHtml(p, lane, w)}
+        <div class="laneBody" style="display:none">${laneRowHtml(p, lane)}</div>
+      </div>`).join('') : '<div class="laneHead muted">（项目下暂无一级任务）</div>'}
+    </div>`).join('');
+  document.querySelectorAll('[data-lane]').forEach(h => h.addEventListener('click', () => {
+    const body = h.parentElement.querySelector('.laneBody');
+    const open = body.style.display !== 'block';
+    body.style.display = open ? 'block' : 'none';
+    h.classList.toggle('open', open);
+  }));
+  document.querySelectorAll('[data-peek]').forEach(rw => rw.addEventListener('click', e => { e.stopPropagation(); openPeek(rw.dataset.peek, w); }));
+}
+function openPeek(path, w) {
+  const [pid, laneId] = path.split('|');
+  const p = R.projects.find(x => x.id === pid), lane = p.lanes.find(l => l.id === laneId);
+  const risks = R.risks.filter(r => (r.status === 'open' || r.status === 'mitigating') && laneOfRisk({ node: r.id }) && laneOfRisk({ node: r.id }).lane === laneId);
+  const lev = w.perProj[pid].evs.filter(e => { const m = laneOfRisk(e); return m && m.lane === laneId; }).slice(-10);
+  $('sheetTitle').textContent = `${p.name} / ${lane.name}`;
+  $('sheetBody').innerHTML = `
+    <div class="sechead">任务目标 · 完成判定（达成度 ${lane.pct}%）</div>
+    <div class="goalcard">
+      <div class="gn">${lane.goal ? `<span class="chip acc">指标 ${esc(lane.goal.metric || '未设')}</span> <span class="chip">门禁 ${esc(lane.goal.gate || '未设')}</span> <span class="chip">契约 ${esc(lane.goal.due || '—')}</span>` : '<span class="chip">无目标契约（非目标节点）</span>'}</div>
+      <div class="gg">达成度：<kbd>${lane.pct}%</kbd> ＝ 推导 <kbd>${lane.pctDerived}%</kbd>（子任务 ${lane.leavesDone}/${lane.leavesTotal}）${lane.pctOverride != null ? ` → 人工 <kbd>${lane.pctOverride}%</kbd>（生效 ${lane.pct}%，限 ±${lane.pctBand}pp，修正走事件流审计）` : ''}</div>
+      <div class="gg" style="margin-top:4px">${lane.hasChildren ? `<span class="decomp ok">已拆解 ${lane.leavesTotal} 叶子任务</span>` : '<span class="decomp miss">⚠ 未拆解——建议立即产出拆解任务</span>'}
+        <span class="chip" style="margin-left:6px">估算 ${lane.estimateHours || '—'}h</span>
+        <span class="chip" title="预测缺失本身是进度风险输入">⏱ 预测 —（待工时源 burn-rate）</span></div>
+    </div>
+    <div class="sechead">里程碑（${lane.milestones.length}）</div>
+    ${lane.milestones.map(m => { const [cls, tag] = MS_TAG[m.status] || ['', '']; return `<span class="chip ${cls}" style="margin:0 6px 6px 0">◆ ${esc(m.name)} ${m.done}/${m.total} · ${m.date}${tag ? ' ' + tag : ''}</span>`; }).join('') || '<span class="chip">无</span>'}
+    <div class="sechead">关联开放风险 ${risks.length}</div>
+    ${risks.length ? risks.map(r => { const ex = (r.p || 0) * (r.i || 0); const sev = ex >= 15 ? 'crit' : ex >= 9 ? 'high' : ex >= 5 ? 'med' : 'low';
+      return `<div class="rrow"><span class="sev ${sev}">${r.p}×${r.i}</span><div><div class="t"><span class="cat-chip cat-${CAT[r.category]?.[1]}" style="margin-right:6px"><i></i>${CAT[r.category]?.[0]}</span>${esc(r.title)}</div>
+      <div class="m">${r.owner || '⚠ 无主'} · ${RST[r.status] || r.status} · 暴露 ${fmt(ex)}${r.review ? ' · 复审 ' + r.review : ''}</div></div></div>`; }).join('')
+      : '<span class="chip good">✓ 无关联开放风险</span>'}
+    <div class="sechead">阶段事件流（窗口内，最多 10 条）</div>
+    ${lev.length ? lev.map(e => `<div class="evline"><span class="ed">${esc(e.date)}</span><span class="muted">[${esc(e.type)}] ${esc(e.note)}${e.ref ? `（${esc(e.ref)}）` : ''}</span></div>`).join('') : '<span class="chip">窗口内无事件</span>'}`;
+  $('dim').classList.add('on');
+  $('sheet').classList.add('on');
+}
+
+/* ---------- 其余区块 ---------- */
+function renderAll() {
+  const w = windowData(state.days);
+  $('winLbl').textContent = `＝ ${w.from} ~ ${w.to}`;
+  document.title = `${R.meta.title} · 阶段汇报 ${w.from}~${w.to}`;
+
+  const msWarn = R.projects.reduce((s, p) => s + p.msCount.atRisk, 0);
+  const msMiss = R.projects.reduce((s, p) => s + p.msCount.missed, 0);
+  $('kpis').innerHTML = [
+    ['crit', fmt(w.stock.exposure), '风险暴露值（期末）'],
+    ['crit', `●${w.stock.crit}`, `危急（p×i≥${R.config.highExposure}）`],
+    ['high', w.stock.high, '高危触发'],
+    ['high', `${msWarn} / ${msMiss}`, '里程碑 预警 / 错过'],
+    [R.summary.unverified ? 'crit' : 'ok', R.summary.unverified, '无证据达成'],
+    ['acc', `${w.flows.opened} / ${w.flows.closed}`, '窗口内 新增 / 解决'],
+    ['acc', R.decisions.length, '需决策'],
+    ['ok', R.summary.assets.reused, '资产累计复用'],
+  ].map(([c, n, l]) => `<div class="kpi ${c}"><span class="n">${n}</span><span class="l">${l}</span></div>`).join('');
+
+  const catStock = Object.entries(w.stock.stock).map(([k, v]) => `${CAT[k][0]} <b>${v}</b>`).join(' · ');
+  let html = `<div class="muted">期末风险存量：${catStock} ｜ 窗口流量：新增 <b>${w.flows.opened}</b> / 解决 <b>${w.flows.closed}</b>（上期 ${w.flowsPrev.opened} / ${w.flowsPrev.closed}）<br>
+  趋势：暴露值 <b>${fmt(R.summary.exposurePrev)}</b>（上期末）→ <b>${fmt(w.stock.exposure)}</b>（本期末）<br>
+  资产：累计 ${R.summary.assets.total}（已投产 ${R.summary.assets.adopted}，复用 <b>${R.summary.assets.reused}</b>，带基线量化 ${R.summary.assets.quantified} 项）</div>`;
+  if (R.decisions.length) {
+    html += `<div style="margin-top:12px;font-weight:600;font-size:12.5px">需决策清单（${R.decisions.length}）</div>`;
+    html += R.decisions.slice(0, TOP).map(d => `<div class="decision">【${esc(d.risk)}】${esc(d.what)} <span class="muted">— ${esc(d.why)}${d.due ? `，截止 ${esc(d.due)}` : ''}</span></div>`).join('');
+    if (R.decisions.length > TOP) html += `<details class="more"><summary>其余 ${R.decisions.length - TOP} 项 …</summary>${R.decisions.slice(TOP).map(d => `<div class="decision">【${esc(d.risk)}】${esc(d.what)} <span class="muted">— ${esc(d.why)}</span></div>`).join('')}</details>`;
+  } else html += `<div style="margin-top:8px" class="muted">本期无需领导决策事项。</div>`;
+  $('summary').innerHTML = html;
+
+  renderLanes(w);
+
+  $('projects').innerHTML =
+    `<tr><th>项目</th><th>RAG</th><th>完成度</th><th>里程碑</th><th>目标(契约)</th><th>任务达成（窗口内）</th><th>风险存量</th><th>暴露值</th><th>资产</th><th>估算</th></tr>` +
+    R.projects.map(p => {
+      const stock = Object.entries(p.riskStock).filter(([, v]) => v > 0).map(([k, v]) => `<span class="cat-chip cat-${CAT[k][1]}"><i></i>${CAT[k][0]} ${v}</span>`).join(' ') || '<span class="f3">0</span>';
+      const ms = `${p.msCount.hit}/${p.msCount.total}${p.msCount.atRisk ? ` <span style="color:var(--m-at-risk)">⚠${p.msCount.atRisk}</span>` : ''}${p.msCount.missed ? ` <span style="color:var(--cat-prob)">✗${p.msCount.missed}</span>` : ''}`;
+      const win = w.perProj[p.id].evs.filter(e => e.type === 'impl' && DONE.has(e.to) && LEAVES.has(e.node)).length;
+      return `<tr><td><b>${esc(p.name)}</b></td><td><span class="rag ${p.rag}"></span></td>
+      <td class="num">${Math.round(p.doneWeight * 100)}%</td><td class="num">${ms}</td><td class="num">${p.goalDone}/${p.goalTotal}</td>
+      <td class="num">${p.taskDone}/${p.leaves}（<span style="color:var(--m-hit)">+${win}</span>）</td>
+      <td>${stock}</td><td class="num">${fmt(p.exposure)}</td>
+      <td class="num">${p.assets.adopted}/${p.assets.total} · 复用${p.assets.reused}</td>
+      <td class="num">${p.estimateHours || '—'}h</td></tr>`;
+    }).join('');
+
+  $('highSub').textContent = `触发条件：暴露值≥${R.config.highExposure} ｜ 关键问题 ｜ 复审逾期 ｜ 无主 ｜ ${R.config.staleDays} 天无进展`;
+  $('high').innerHTML = R.highRisks.length
+    ? R.highRisks.map(h => `<div class="riskcard"><div class="t">🔴 [${esc(h.id)}] ${esc(h.title)}</div>
+      <div class="m"><span class="cat-chip cat-${CAT[h.category]?.[1] || ''}"><i></i>${CAT[h.category]?.[0] || esc(h.category)}</span> · p×i=<b>${fmt(h.exposure)}</b> · ${esc(RST[h.status] || h.status)} · 最近事件 ${esc(h.lastEvent)}</div>
+      <div class="m">触发：${h.triggers.map(esc).join('；')}${h.node ? ` · 关联 ${esc(h.node)}` : ''}</div>
+      ${h.mitigation ? `<div class="m">缓解：${esc(h.mitigation)}</div>` : ''}</div>`).join('')
+    : '<section class="card muted">无触发高危条件的风险。</section>';
+
+  $('risktable').innerHTML =
+    `<tr><th>类别</th><th>期末存量</th><th>本期新增</th><th>本期解决/接受</th></tr>` +
+    Object.entries(CAT).map(([k, [label]]) => `<tr><td><span class="cat-chip cat-${CAT[k][1]}"><i></i>${label}</span></td><td class="num"><b>${w.stock.stock[k]}</b></td><td class="num">${w.flows.f[k]}</td><td class="num">${w.flows.r[k]}</td></tr>`).join('');
+
+  $('riskall').innerHTML =
+    `<tr><th>ID</th><th>标题</th><th>类别</th><th>p×i</th><th>状态</th><th>责任人</th><th>复审</th><th class="detail-only">关联</th></tr>` +
+    R.risks.map(x => `<tr><td class="f3">${esc(x.id)}</td><td>${esc(x.title)}</td><td><span class="cat-chip cat-${CAT[x.category]?.[1]}"><i></i>${CAT[x.category]?.[0]}</span></td><td class="num">${fmt(x.exposure)}</td><td class="${x.status === 'open' ? 'gatemiss' : ''}">${esc(RST[x.status] || x.status)}</td><td>${x.owner ? esc(x.owner) : '<span class="gatemiss">⚠ 无主</span>'}</td><td class="num">${x.review ? esc(x.review) : '—'}</td><td class="detail-only">${esc(x.node || '—')}</td></tr>`).join('');
+
+  const A = R.assets;
+  const assetRow = a => {
+    const ben = a.status === 'adopted'
+      ? (a.metric && a.baseline && a.value ? `收益：<b>${esc(a.metric)} ${esc(a.value)}${esc(a.unit || '')}</b>（基线 ${esc(a.baseline)}${a.evidence ? `，证据 ${esc(a.evidence)}` : '，<span class="gatemiss">证据缺失</span>'}）` : `已投产，<span class="muted">未量化（缺指标/基线）</span>`)
+      : `<span class="muted">${esc(AST[a.status] || a.status)} · 未投产不计收益</span>`;
+    return `<div style="padding:6px 0;border-bottom:1px dashed var(--border)"><b>${esc(a.title)}</b> <span class="chip">${esc(ATY[a.type] || a.type)}</span> <span class="muted">复用 <b>${a.reused || 0}</b> 次</span><div class="muted" style="font-size:12px">${ben}</div></div>`;
+  };
+  $('assets').innerHTML = A.length
+    ? A.slice(0, TOP).map(assetRow).join('') + (A.length > TOP ? `<details class="more"><summary>其他 ${A.length - TOP} 项资产 …</summary>${A.slice(TOP).map(assetRow).join('')}</details>` : '')
+    : '<span class="muted">本期无资产登记。</span>';
+
+  const msRow = m => `<li>◆ <b>${esc(m.name)}</b> <span class="muted">${esc(m.node)}</span> · <span class="num">${esc(m.date)}</span> · <span class="ms-${m.status}" style="font-size:10px">◆</span> <span style="color:${MS_COLOR[m.status] || 'inherit'}">${esc(m.status)}</span>${m.criteria?.length ? `<span class="f3 detail-only"> ｜ 验收：${esc(m.criteria.join('、'))}</span>` : ''}</li>`;
+  $('milestones').innerHTML = R.milestones.length
+    ? `<ul class="plain">` + R.milestones.slice(0, TOP).map(msRow).join('') + (R.milestones.length > TOP ? `<details class="more"><summary>其他 ${R.milestones.length - TOP} 个里程碑 …</summary>${R.milestones.slice(TOP).map(msRow).join('')}</details>` : '') + `</ul>`
+    : '<span class="muted">无里程碑登记。</span>';
+
+  $('plan').innerHTML = R.backlog.length
+    ? `<ul class="plain">${R.backlog.slice(0, TOP).map(b => `<li>▸ ${esc(b.title)} <span class="muted">${esc(b.node || '')}</span></li>`).join('')}${R.backlog.length > TOP ? `<details class="more"><summary>其他 ${R.backlog.length - TOP} 项 …</summary>${R.backlog.slice(TOP).map(b => `<li>▸ ${esc(b.title)}</li>`).join('')}</details>` : ''}</ul>`
+    : '<span class="muted">无已承诺计划项。</span>';
+
+  $('evtCount').textContent = w.evs.length;
+  $('events').innerHTML = `<ul class="plain">` + w.evs.slice(-120).map(e =>
+    `<li><span class="ed num">${esc(e.date)}</span> <span class="chip">${esc(e.type)}</span>${e.node ? ` <span class="muted">${esc(e.node)}</span>` : ''} ${esc(e.note)}${e.ref ? ` <span class="f3">(${esc(e.ref)})</span>` : ''}</li>`).join('') + `</ul>`;
+
+  $('foot').textContent = `窗口 ${w.from} ~ ${w.to} · 生成于 ${R.meta.generatedAt} · riskdeck report 投影，数字均由事件流计算 · 达成度=子任务推导±20pp限幅 · 高危阈值 p×i≥${R.config.highExposure} · FTE 对账待工时源接入`;
+}
+
+/* ---------- 控件 ---------- */
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1600); }
+function closeSheet() { $('sheet').classList.remove('on'); $('dim').classList.remove('on'); }
+$('dim').onclick = closeSheet;
+$('sheetX').onclick = closeSheet;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+$('winSeg').addEventListener('click', e => {
+  const b = e.target.closest('button[data-win]'); if (!b) return;
+  [...$('winSeg').querySelectorAll('button')].forEach(x => x.classList.toggle('on', x === b));
+  state.days = Number(b.dataset.win); renderAll();
+});
+$('winInput').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const v = Math.min(365, Math.max(1, Number(e.target.value) || state.days));
+  state.days = v; [...$('winSeg').querySelectorAll('button')].forEach(x => x.classList.remove('on'));
+  toast(`窗口已切换为 ${v} 天`); renderAll();
+});
+$('modeBtn').onclick = () => {
+  const brief = document.body.classList.toggle('brief');
+  $('modeBtn').textContent = brief ? '核查视图' : '汇报视图';
+  $('modeBtn').classList.toggle('on', !brief);
+};
+$('precBtn').onclick = () => {
+  precise = !precise;
+  $('precBtn').textContent = precise ? '精度：一位小数' : '精度：整数';
+  $('precBtn').classList.toggle('on', precise);
+  renderAll();
+};
+const navBtns = [...document.querySelectorAll('#nav button')];
+navBtns.forEach(b => b.onclick = () => $(b.dataset.t).scrollIntoView({ behavior: 'smooth', block: 'start' }));
+const spy = new IntersectionObserver(es => {
+  es.forEach(en => { if (en.isIntersecting) navBtns.forEach(b => b.classList.toggle('on', b.dataset.t === en.target.id)); });
+}, { rootMargin: '-60px 0px -70% 0px' });
+['sec-overview', 'sec-projects', 'sec-risks', 'sec-assets', 'sec-ms', 'sec-plan', 'sec-events'].forEach(id => { const el = $(id); if (el) spy.observe(el); });
+
+renderAll();
+</script>
+</body>
+</html>

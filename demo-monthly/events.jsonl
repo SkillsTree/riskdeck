@@ -1,0 +1,33 @@
+{"id":"d5934a7f983a","ts":"2026-09-12T21:05:26.308Z","date":"2026-09-12","type":"note","node":"proj-rd","note":"新建 project「RiskDeck」（顶层项目）","source":"cli"}
+{"id":"ce40c85230e4","ts":"2026-09-12T21:05:26.343Z","date":"2026-09-12","type":"note","node":"g-report","note":"新建 module「月报投影管线」（挂在 proj-rd 下）","source":"cli"}
+{"id":"94ad11f46f7e","ts":"2026-09-12T21:05:26.375Z","date":"2026-09-12","type":"note","node":"g-mcp","note":"新建 module「MCP server」（挂在 proj-rd 下）","source":"cli"}
+{"id":"9a09e151fd6b","ts":"2026-09-12T21:05:26.410Z","date":"2026-09-12","type":"note","node":"g-timesheet","note":"新建 module「工时源适配器」（挂在 proj-rd 下）","source":"cli"}
+{"id":"c65ce818def9","ts":"2026-09-12T21:05:26.444Z","date":"2026-09-12","type":"note","node":"t-schema","note":"新建 feature「schema v2 加法迁移」（挂在 g-report 下）","source":"cli"}
+{"id":"9ee66acd71e3","ts":"2026-09-12T21:05:26.477Z","date":"2026-09-12","type":"note","node":"t-report-cmd","note":"新建 feature「report 投影命令」（挂在 g-report 下）","source":"cli"}
+{"id":"bf08f1bdd080","ts":"2026-09-12T21:05:26.509Z","date":"2026-09-12","type":"note","node":"t-html","note":"新建 feature「HTML 详略控件」（挂在 g-report 下）","source":"cli"}
+{"id":"4dfb8cfbd227","ts":"2026-09-12T21:05:26.540Z","date":"2026-09-12","type":"note","node":"t-decomp","note":"新建 feature「MCP 目标拆解任务」（挂在 g-mcp 下）","source":"cli"}
+{"id":"425227d88471","ts":"2026-09-12T21:05:26.572Z","date":"2026-09-12","type":"note","node":"t-api","note":"新建 feature「工时 API 拉取」（挂在 g-timesheet 下）","source":"cli"}
+{"id":"f18c4fcdc8e3","ts":"2026-09-12T21:05:26.603Z","date":"2026-09-12","type":"gate","node":"g-report","note":"目标契约更新：指标 report 命令一条指令出月报，门禁 md+html 双产物，数字全出自事件流，契约 2026-09-30，FTE 预算 3","source":"cli"}
+{"id":"8cb42835ab54","ts":"2026-09-12T21:05:26.634Z","date":"2026-09-12","type":"gate","node":"g-mcp","note":"目标契约更新：指标 dsh 会话内直接读写看板，门禁 三大 agent 各跑通一次往返，契约 2026-11-30，FTE 预算 5","source":"cli"}
+{"id":"70bed2d1cd34","ts":"2026-09-12T21:05:26.668Z","date":"2026-09-12","type":"gate","node":"t-schema","note":"目标契约更新：估算 12h","source":"cli"}
+{"id":"203382a06544","ts":"2026-09-12T21:05:26.700Z","date":"2026-09-12","type":"gate","node":"t-report-cmd","note":"目标契约更新：估算 16h","source":"cli"}
+{"id":"183839d8e1f8","ts":"2026-09-12T21:05:26.744Z","date":"2026-09-12","type":"gate","node":"t-html","note":"目标契约更新：估算 20h","source":"cli"}
+{"id":"e20808ca677b","ts":"2026-09-12T21:05:26.776Z","date":"2026-09-12","type":"gate","node":"t-api","note":"目标契约更新：估算 24h","source":"cli"}
+{"id":"268e32b38f4e","ts":"2026-09-12T21:05:26.810Z","date":"2026-08-20","type":"impl","node":"t-schema","to":"verified","note":"枚举/校验/登记 upsert 全部落地，回归通过","ref":"commit a1b2c3","source":"cli"}
+{"id":"c6ee675b43c6","ts":"2026-09-12T21:05:26.841Z","date":"2026-09-10","type":"impl","node":"t-report-cmd","to":"done","note":"report 子命令 + markdown 投影","ref":"commit d4e5f6","source":"cli"}
+{"id":"71d3ee537a3f","ts":"2026-09-12T21:05:26.872Z","date":"2026-09-12","type":"impl","node":"t-html","to":"wip","note":"模板完成 80%，打印样式待调","source":"cli"}
+{"id":"11db3df2ae16","ts":"2026-09-12T21:05:26.905Z","date":"2026-09-05","type":"impl","node":"t-decomp","to":"done","note":"MCP 拆解完成：3 个二级任务，可并发","ref":"docs/mcp-decomp.md","source":"cli"}
+{"id":"d6f486cb2bae","ts":"2026-09-12T21:05:26.936Z","date":"2026-09-12","type":"milestone","node":"g-report","note":"新增里程碑「月报管线可用」目标 2026-09-30","source":"cli"}
+{"id":"144780379c5b","ts":"2026-09-12T21:05:26.968Z","date":"2026-09-12","type":"milestone","node":"g-timesheet","note":"新增里程碑「工时源自动入库」目标 2026-10-15","source":"cli"}
+{"id":"19cbcfa0b979","ts":"2026-09-12T21:05:27.002Z","date":"2026-08-25","type":"risk","node":"r-001","to":"open","note":"登记风险「工时系统 API 鉴权方式未定」（resource，p×i=18.0）","source":"cli"}
+{"id":"815bae46af30","ts":"2026-09-12T21:05:27.034Z","date":"2026-09-01","type":"risk","node":"r-002","to":"mitigating","note":"登记风险「跨会话语义映射规则复杂，业界无现成方案」（problem，p×i=20.0）","source":"cli"}
+{"id":"ffc50ec133c2","ts":"2026-09-12T21:05:27.065Z","date":"2026-09-10","type":"risk","node":"r-003","to":"open","note":"登记风险「HTML 模板打印样式可能超出 A4」（quality，p×i=3.2）","source":"cli"}
+{"id":"2f75b9bec67f","ts":"2026-09-12T21:05:27.097Z","date":"2026-08-16","type":"risk","node":"r-004","to":"open","note":"登记风险「月报截止前手忙脚乱赶工」（schedule，p×i=4.5）","source":"cli"}
+{"id":"c65e3ae03a1f","ts":"2026-09-12T21:05:27.130Z","date":"2026-09-11","type":"risk","node":"r-004","to":"resolved","note":"report 命令上线，赶工风险解除","source":"cli"}
+{"id":"9d186e273246","ts":"2026-09-12T21:05:27.163Z","date":"2026-08-15","type":"asset","node":"as-001","to":"adopted","note":"沉淀资产「概念 v2 术语与四类风险约定」（process，指标 汇报口径对齐耗时）","ref":"docs/CONCEPTS.md","source":"cli"}
+{"id":"e8e05533cb24","ts":"2026-09-12T21:05:27.197Z","date":"2026-09-10","type":"asset","node":"as-002","to":"deposited","note":"沉淀资产「riskdeck report 月报投影管线」（tool）","source":"cli"}
+{"id":"6e0ccf89bb25","ts":"2026-09-12T21:05:27.228Z","date":"2026-09-12","type":"asset","node":"as-003","to":"deposited","note":"v1 看板零破坏升级的可复用做法","source":"cli"}
+{"id":"6e2d37e0b7e7","ts":"2026-09-12T21:06:16.932Z","date":"2026-09-11","type":"risk","node":"r-004","to":"resolved","note":"report 命令上线，赶工风险解除","source":"cli"}
+{"id":"e79bdfef7157","ts":"2026-09-13T08:14:56.972Z","date":"2026-09-13","type":"gate","node":"t-report-cmd","note":"目标契约更新：达成度人工修正 85%（推导 100%，生效 85%，限 ±20pp）","source":"cli"}
+{"id":"153907a4a387","ts":"2026-09-13T08:15:51.930Z","date":"2026-09-13","type":"gate","node":"g-mcp","note":"目标契约更新：达成度人工修正 85%（推导 100%，生效 85%，限 ±20pp）","source":"cli"}
+{"id":"5493069194c4","ts":"2026-09-13T08:16:18.682Z","date":"2026-09-13","type":"gate","node":"t-html","note":"目标契约更新：达成度人工修正 10%（推导 50%，生效 30%，限 ±20pp）","source":"cli"}
